@@ -1099,12 +1099,15 @@ class DataStore {
   }
 
   // Seguimiento compartible con un contacto de confianza (entrevista 3).
+  // Es un link SIN autenticación: se le saca el código de llegada a propósito.
+  // Compartir el seguimiento no puede ser compartir la llave de la puerta.
   getTrackingByToken(token: string) {
     const job = this.jobs.find((j) => j.trackingToken === token);
     if (!job) return null;
     const worker = this.users.find((u) => u.id === job.workerId);
     const client = this.users.find((u) => u.id === job.clientId);
-    const state = this.getTrackingState(job.id);
+    const full = this.getTrackingState(job.id);
+    const state = full ? { ...full, arrivalCode: undefined } : null;
     return {
       jobTitle: job.title,
       clientName: client?.name,
@@ -1198,19 +1201,32 @@ class DataStore {
     if (openDispute) throw new Error("Hay un reclamo abierto sobre este trabajo. Se resuelve antes de liberar los fondos.");
 
     const now = new Date().toISOString();
-    job.status = "completado";
-    job.completedAt = now;
-    // Garantía: arranca al completarse.
-    const days = job.warrantyDays ?? DEFAULT_WARRANTY_DAYS;
-    job.warrantyDays = days;
-    job.warrantyUntil = new Date(Date.now() + days * 86400000).toISOString();
-
     const payment = this.payments.find((p) => p.jobId === id);
     if (payment && payment.status === "retenido") {
       payment.status = "liberado";
       payment.releasedAt = now;
       this.payouts.push({ id: `pay${Date.now()}`, workerId: job.workerId, amount: payment.net, status: "pendiente", createdAt: now });
     }
+    this.finalizeJobCompletion(job, now);
+
+    this.pushNotification(job.workerId, "pago", "Trabajo validado", `${me.name} validó "${job.title}". Se liberaron los fondos a tu billetera.`, "/w/cobros");
+    this.saveToStorage();
+    return job;
+  }
+
+  // Cierre de un trabajo. Vive aparte porque hay DOS caminos que completan un
+  // trabajo —la validación del cliente y una disputa resuelta a favor del
+  // profesional— y los dos tienen que dejar el mismo estado: si no, el cliente
+  // que pierde una disputa perdería además la garantía, y el trabajo no le
+  // contaría al nivel del profesional.
+  private finalizeJobCompletion(job: Job, now: string) {
+    job.status = "completado";
+    job.completedAt = now;
+
+    // La garantía arranca al completarse.
+    const days = job.warrantyDays ?? DEFAULT_WARRANTY_DAYS;
+    job.warrantyDays = days;
+    job.warrantyUntil = new Date(new Date(now).getTime() + days * 86400000).toISOString();
 
     const proposal = this.proposals.find((p) => p.id === job.proposalId);
     if (proposal) proposal.status = "finalizada";
@@ -1222,9 +1238,6 @@ class DataStore {
       worker.jobsDone = (worker.jobsDone || 0) + 1;
       worker.level = this.computeLevel(worker.jobsDone);
     }
-    this.pushNotification(job.workerId, "pago", "Trabajo validado", `${me.name} validó "${job.title}". Se liberaron los fondos a tu billetera.`, "/w/cobros");
-    this.saveToStorage();
-    return job;
   }
 
   cancelJob(id: string) {
@@ -1395,9 +1408,9 @@ class DataStore {
         payment.status = "liberado";
         payment.releasedAt = now;
         if (job) {
-          job.status = "completado";
-          job.completedAt = now;
           this.payouts.push({ id: `pay${Date.now()}`, workerId: job.workerId, amount: payment.net, status: "pendiente", createdAt: now });
+          // Mismo cierre que la validación del cliente: garantía incluida.
+          this.finalizeJobCompletion(job, now);
         }
       }
     }

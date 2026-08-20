@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, ClipboardList, Siren, ArrowRight } from "lucide-react";
+import { Plus, Search, ClipboardList, Siren, ArrowRight, Inbox, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ofix/PageHeader";
@@ -16,6 +16,12 @@ export default function UserHome() {
   const { user } = useAuth();
   const requests = store.getOffers({ authorId: user?.id });
   const recommended = store.getRecommendedWorkers(6);
+  // Profesionales que pueden ir AHORA en la zona del cliente.
+  const availableNow = store.getAvailableNowCount({ zone: user?.zone });
+  // Propuestas pendientes de revisar sobre las solicitudes abiertas del cliente.
+  const proposalsReceived = requests
+    .filter((o) => o.status === "abierta")
+    .reduce((total, o) => total + store.getProposals({ offerId: o.id, status: "enviada" }).length, 0);
 
   return (
     <div className="space-y-8">
@@ -45,11 +51,38 @@ export default function UserHome() {
         </Card>
       </div>
 
-      {/* Accesos rápidos */}
+      {/* Cuántos pueden ir AHORA: el dolor #1 de la investigación */}
+      {availableNow > 0 && (
+        <Card className="border-success/30 bg-success-light/50">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3 w-3 items-center justify-center">
+                <span className="absolute h-3 w-3 animate-ping rounded-full bg-success opacity-75" />
+                <span className="h-2 w-2 rounded-full bg-success" />
+              </span>
+              <p className="text-sm">
+                <span className="font-semibold text-success">{availableNow} profesionales disponibles ahora</span>
+                {user?.zone && <span className="text-muted-foreground"> cerca de {user.zone.split(",")[0]}</span>}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/u/search?ahora=1")}>
+              Ver quiénes
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Los 3 accesos directos del prototipo de la tesis (2.12.4) */}
       <div className="grid gap-4 sm:grid-cols-3">
         <QuickAction icon={Search} label="Buscar profesionales" hint="Por oficio y zona" onClick={() => navigate("/u/search")} />
-        <QuickAction icon={ClipboardList} label="Mis solicitudes" hint={`${requests.length} publicadas`} onClick={() => navigate("/u/requests")} />
-        <QuickAction icon={Plus} label="Mis trabajos" hint="Acuerdos y seguimiento" onClick={() => navigate("/u/jobs")} />
+        <QuickAction
+          icon={Inbox}
+          label="Ofertas recibidas"
+          hint={proposalsReceived > 0 ? `${proposalsReceived} para revisar` : "Sin propuestas nuevas"}
+          onClick={() => navigate("/u/requests")}
+        />
+        <QuickAction icon={Briefcase} label="Mis trabajos" hint="Acuerdos y seguimiento" onClick={() => navigate("/u/jobs")} />
       </div>
 
       {/* Categorías */}

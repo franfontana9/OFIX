@@ -1,6 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search as SearchIcon, MapPin, List, Map as MapIcon, X, SlidersHorizontal } from "lucide-react";
+import {
+  Search as SearchIcon,
+  MapPin,
+  List,
+  Map as MapIcon,
+  X,
+  SlidersHorizontal,
+  ChevronDown,
+  Zap,
+  BadgeCheck,
+  ShieldCheck,
+  CalendarClock,
+  Layers,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +24,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { WorkerCard } from "@/components/ofix/WorkerCard";
+import { AvailabilityBadge } from "@/components/ofix/AvailabilityBadge";
 import { RealMap, type MapPoint } from "@/components/ofix/RealMap";
 import { SkeletonList } from "@/components/ofix/Skeleton";
 import { EmptyState } from "@/components/ofix/EmptyState";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
-import { CATEGORIES } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { CATEGORIES, COMPLEXITY_LABELS, type Complexity } from "@/lib/types";
 
 const ALL = "__all__";
 type Sort = "rating" | "distance" | "price";
@@ -32,6 +49,39 @@ const RATING_OPTIONS = [
   { value: "3", label: "3+" },
 ];
 
+const money = (n: number) => `$${n.toLocaleString("es-AR")}`;
+
+// Chip toggleable: los filtros que salieron de la investigación se manejan acá,
+// a un click de distancia y siempre visibles (no escondidos en un panel).
+function FilterChip({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-all",
+        active
+          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+          : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {children}
+    </button>
+  );
+}
+
 export default function UserSearch() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -47,39 +97,46 @@ export default function UserSearch() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [minRating, setMinRating] = useState<string>(ALL);
+  const [complexity, setComplexity] = useState<Complexity | typeof ALL>(ALL);
   const [onlyVerified, setOnlyVerified] = useState(false);
-  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [onlyAvailableNow, setOnlyAvailableNow] = useState(false);
+  const [onlyLicensed, setOnlyLicensed] = useState(false);
+  const [onCallOnly, setOnCallOnly] = useState(false);
   const [sort, setSort] = useState<Sort>("rating");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const cat = category === ALL ? undefined : category;
+  const zoneQuery = zone.trim() || undefined;
 
   const { results, distanceById } = useMemo(() => {
     // Mapa de distancias por trabajador (para orden "más cerca" y para mostrarlas).
     const distMap: Record<string, number> = {};
-    store
-      .getNearbyWorkers(user?.geo, { category: category === ALL ? undefined : category })
-      .forEach(({ worker, distance }) => {
-        if (typeof distance === "number") distMap[worker.id] = distance;
-      });
-
-    let list = store.getWorkers({
-      category: category === ALL ? undefined : category,
-      zone: zone.trim() || undefined,
-      q: q.trim() || undefined,
+    store.getNearbyWorkers(user?.geo, { category: cat }).forEach(({ worker, distance }) => {
+      if (typeof distance === "number") distMap[worker.id] = distance;
     });
 
-    const min = priceMin.trim() ? Number(priceMin) : undefined;
     const max = priceMax.trim() ? Number(priceMax) : undefined;
     const minR = minRating === ALL ? undefined : Number(minRating);
 
-    list = list.filter((w) => {
-      const rate = w.hourlyRate ?? 0;
-      if (min !== undefined && !Number.isNaN(min) && rate < min) return false;
-      if (max !== undefined && !Number.isNaN(max) && rate > max) return false;
-      if (minR !== undefined && (w.rating ?? 0) < minR) return false;
-      if (onlyVerified && !w.verified) return false;
-      if (onlyAvailable && !w.available) return false;
-      return true;
+    let list = store.getWorkers({
+      category: cat,
+      zone: zoneQuery,
+      q: q.trim() || undefined,
+      onlyAvailableNow: onlyAvailableNow || undefined,
+      onlyLicensed: onlyLicensed || undefined,
+      onlyVerified: onlyVerified || undefined,
+      onCallOnly: onCallOnly || undefined,
+      complexity: complexity === ALL ? undefined : complexity,
+      minRating: minR !== undefined && !Number.isNaN(minR) ? minR : undefined,
+      maxPrice: max !== undefined && !Number.isNaN(max) ? max : undefined,
     });
+
+    // El store no filtra por tarifa mínima: se resuelve acá.
+    const min = priceMin.trim() ? Number(priceMin) : undefined;
+    if (min !== undefined && !Number.isNaN(min)) {
+      list = list.filter((w) => (w.hourlyRate ?? 0) >= min);
+    }
 
     const sorted = [...list].sort((a, b) => {
       if (sort === "price") return (a.hourlyRate ?? Infinity) - (b.hourlyRate ?? Infinity);
@@ -88,14 +145,52 @@ export default function UserSearch() {
     });
 
     return { results: sorted, distanceById: distMap };
-  }, [category, zone, q, priceMin, priceMax, minRating, onlyVerified, onlyAvailable, sort, user?.geo]);
+  }, [
+    cat,
+    zoneQuery,
+    q,
+    priceMin,
+    priceMax,
+    minRating,
+    complexity,
+    onlyVerified,
+    onlyAvailableNow,
+    onlyLicensed,
+    onCallOnly,
+    sort,
+    user?.geo,
+  ]);
+
+  // Dolor #1 de las entrevistas: saber cuánta gente puede ir AHORA.
+  const availableNow = useMemo(
+    () => store.getAvailableNowCount({ category: cat, zone: zoneQuery }),
+    [cat, zoneQuery],
+  );
+  const onCallCount = useMemo(() => store.getOnCallWorkers(cat).length, [cat]);
+
+  // Miedo a los precios abusivos (entrevistas 1, 3 y 6): referencia de mercado.
+  const priceRef = useMemo(() => (cat ? store.getPriceReference(cat) : null), [cat]);
+  const showPriceRef = priceRef !== null && priceRef.count >= 3;
 
   // Sensación de carga al cambiar cualquier filtro.
   useEffect(() => {
     setLoading(true);
     const t = setTimeout(() => setLoading(false), 400);
     return () => clearTimeout(t);
-  }, [category, zone, q, priceMin, priceMax, minRating, onlyVerified, onlyAvailable, sort]);
+  }, [
+    cat,
+    zoneQuery,
+    q,
+    priceMin,
+    priceMax,
+    minRating,
+    complexity,
+    onlyVerified,
+    onlyAvailableNow,
+    onlyLicensed,
+    onCallOnly,
+    sort,
+  ]);
 
   const mapPoints: MapPoint[] = results
     .filter((w) => w.geo)
@@ -120,25 +215,132 @@ export default function UserSearch() {
     setPriceMin("");
     setPriceMax("");
     setMinRating(ALL);
+    setComplexity(ALL);
     setOnlyVerified(false);
-    setOnlyAvailable(false);
+    setOnlyAvailableNow(false);
+    setOnlyLicensed(false);
+    setOnCallOnly(false);
     setSort("rating");
   };
+
+  const verDeGuardia = () => {
+    setOnCallOnly(true);
+    setOnlyAvailableNow(false);
+  };
+
+  // Contexto de la barra de disponibilidad.
+  const contexto = [cat ?? "Todos los oficios", zoneQuery ? `en ${zoneQuery}` : "en todas las zonas"].join(" · ");
+
+  // Filtros del panel avanzado (para el contador del botón "Más filtros").
+  const advancedCount =
+    (priceMin.trim() ? 1 : 0) + (priceMax.trim() ? 1 : 0) + (minRating !== ALL ? 1 : 0) + (complexity !== ALL ? 1 : 0);
 
   // Chips de filtros activos.
   const chips: { key: string; label: string; clear: () => void }[] = [];
   if (q.trim()) chips.push({ key: "q", label: `“${q.trim()}”`, clear: () => setQ("") });
-  if (category !== ALL) chips.push({ key: "cat", label: category, clear: () => setCategory(ALL) });
-  if (zone.trim()) chips.push({ key: "zone", label: zone.trim(), clear: () => setZone("") });
-  if (priceMin.trim()) chips.push({ key: "pmin", label: `Desde $${Number(priceMin).toLocaleString()}/h`, clear: () => setPriceMin("") });
-  if (priceMax.trim()) chips.push({ key: "pmax", label: `Hasta $${Number(priceMax).toLocaleString()}/h`, clear: () => setPriceMax("") });
+  if (cat) chips.push({ key: "cat", label: cat, clear: () => setCategory(ALL) });
+  if (zoneQuery) chips.push({ key: "zone", label: zoneQuery, clear: () => setZone("") });
+  if (priceMin.trim())
+    chips.push({ key: "pmin", label: `Desde ${money(Number(priceMin))}/h`, clear: () => setPriceMin("") });
+  if (priceMax.trim())
+    chips.push({ key: "pmax", label: `Hasta ${money(Number(priceMax))}/h`, clear: () => setPriceMax("") });
   if (minRating !== ALL) chips.push({ key: "rating", label: `${minRating}+ estrellas`, clear: () => setMinRating(ALL) });
+  if (complexity !== ALL)
+    chips.push({ key: "complexity", label: `Complejidad ${COMPLEXITY_LABELS[complexity].toLowerCase()}`, clear: () => setComplexity(ALL) });
   if (onlyVerified) chips.push({ key: "verified", label: "Verificados", clear: () => setOnlyVerified(false) });
-  if (onlyAvailable) chips.push({ key: "available", label: "Disponibles ahora", clear: () => setOnlyAvailable(false) });
+  if (onlyAvailableNow)
+    chips.push({ key: "availableNow", label: "Disponibles ahora", clear: () => setOnlyAvailableNow(false) });
+  if (onlyLicensed) chips.push({ key: "licensed", label: "Matriculados", clear: () => setOnlyLicensed(false) });
+  if (onCallOnly) chips.push({ key: "onCall", label: "De guardia", clear: () => setOnCallOnly(false) });
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Buscar profesionales" subtitle="Encontrá al trabajador verificado que necesitás por oficio y zona" />
+      <PageHeader
+        title="Buscar profesionales"
+        subtitle="Encontrá al trabajador verificado que necesitás por oficio, zona y disponibilidad real"
+      />
+
+      {/* Barra de disponibilidad en vivo — dolor #1 de la investigación */}
+      <Card className={cn("overflow-hidden", availableNow > 0 ? "border-success/35 bg-success-light/50" : "bg-muted/40")}>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="relative flex h-3 w-3 shrink-0 items-center justify-center">
+              {availableNow > 0 && (
+                <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-success opacity-75" />
+              )}
+              <span
+                className={cn(
+                  "relative inline-flex h-2.5 w-2.5 rounded-full",
+                  availableNow > 0 ? "bg-success" : "bg-muted-foreground/50",
+                )}
+              />
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold leading-tight">
+                {availableNow > 0 ? (
+                  <>
+                    <span className="text-success">{availableNow}</span>{" "}
+                    {availableNow === 1 ? "profesional disponible ahora" : "profesionales disponibles ahora"}
+                  </>
+                ) : (
+                  "Nadie disponible en este momento"
+                )}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {availableNow > 0
+                  ? contexto
+                  : onCallCount > 0
+                    ? `${contexto} — hay ${onCallCount} de guardia para fines de semana y feriados`
+                    : `${contexto} — publicá tu solicitud y te avisamos cuando alguien se libere`}
+              </p>
+            </div>
+          </div>
+
+          {availableNow > 0 ? (
+            onlyAvailableNow ? (
+              <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setOnlyAvailableNow(false)}>
+                <X className="h-4 w-4" />
+                Ver también los ocupados
+              </Button>
+            ) : (
+              <Button type="button" size="sm" className="gap-1.5" onClick={() => setOnlyAvailableNow(true)}>
+                <Zap className="h-4 w-4" />
+                Ver solo disponibles
+              </Button>
+            )
+          ) : onCallCount > 0 ? (
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={verDeGuardia}>
+              <CalendarClock className="h-4 w-4" />
+              Ver {onCallCount} de guardia
+            </Button>
+          ) : (
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => navigate("/u/requests/new")}>
+              Publicar solicitud
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Precio de referencia — contra el miedo a que te cobren de más */}
+      {showPriceRef && (
+        <Card className="border-primary/25 bg-primary-light/40">
+          <CardContent className="flex items-start gap-3 p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-semibold leading-snug">
+                En tu zona, {priceRef.category} va de {money(priceRef.min)} a {money(priceRef.max)}{" "}
+                <span className="text-muted-foreground">(promedio {money(priceRef.avg)})</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Referencia calculada sobre {priceRef.count} precios publicados y trabajos cerrados en OFIX. Si un
+                presupuesto se va muy por encima, pedí un segundo.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filtros */}
       <Card>
@@ -174,13 +376,43 @@ export default function UserSearch() {
             </div>
           </div>
 
-          {/* Filtros avanzados */}
-          <div className="border-t pt-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          {/* Filtros rápidos: lo que pidieron las entrevistas, siempre a la vista */}
+          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            <FilterChip icon={Zap} active={onlyAvailableNow} onClick={() => setOnlyAvailableNow((v) => !v)}>
+              Disponible ahora
+            </FilterChip>
+            <FilterChip icon={BadgeCheck} active={onlyLicensed} onClick={() => setOnlyLicensed((v) => !v)}>
+              Solo matriculados
+            </FilterChip>
+            <FilterChip icon={ShieldCheck} active={onlyVerified} onClick={() => setOnlyVerified((v) => !v)}>
+              Solo verificados
+            </FilterChip>
+            <FilterChip icon={CalendarClock} active={onCallOnly} onClick={() => setOnCallOnly((v) => !v)}>
+              De guardia fin de semana
+            </FilterChip>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="ml-auto gap-1.5 text-muted-foreground"
+              aria-expanded={showAdvanced}
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
               <SlidersHorizontal className="h-4 w-4" />
-              Filtros avanzados
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
+              Más filtros
+              {advancedCount > 0 && (
+                <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1.5 text-xs">
+                  {advancedCount}
+                </Badge>
+              )}
+              <ChevronDown className={cn("h-4 w-4 transition-transform", showAdvanced && "rotate-180")} />
+            </Button>
+          </div>
+
+          {/* Panel avanzado (colapsable) */}
+          {showAdvanced && (
+            <div className="grid gap-4 border-t pt-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Tarifa por hora</Label>
                 <div className="flex items-center gap-2">
@@ -217,40 +449,24 @@ export default function UserSearch() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sort">Ordenar por</Label>
-                <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
-                  <SelectTrigger id="sort">
+                <Label htmlFor="complexity" className="flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                  Complejidad del trabajo
+                </Label>
+                <Select value={complexity} onValueChange={(v) => setComplexity(v as Complexity | typeof ALL)}>
+                  <SelectTrigger id="complexity">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(SORT_LABELS) as Sort[]).map((s) => (
-                      <SelectItem key={s} value={s}>{SORT_LABELS[s]}</SelectItem>
+                    <SelectItem value={ALL}>Cualquiera</SelectItem>
+                    {(Object.keys(COMPLEXITY_LABELS) as Complexity[]).map((c) => (
+                      <SelectItem key={c} value={c}>{COMPLEXITY_LABELS[c]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-5">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-primary"
-                  checked={onlyVerified}
-                  onChange={(e) => setOnlyVerified(e.target.checked)}
-                />
-                Solo verificados
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-primary"
-                  checked={onlyAvailable}
-                  onChange={(e) => setOnlyAvailable(e.target.checked)}
-                />
-                Disponibles ahora
-              </label>
-            </div>
-          </div>
+          )}
 
           {/* Chips de filtros activos */}
           {chips.length > 0 && (
@@ -278,11 +494,24 @@ export default function UserSearch() {
 
       {/* Resultados */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Resultados</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
+        <div>
+          <h2 className="text-lg font-semibold">Resultados</h2>
+          <p className="text-sm text-muted-foreground">
             {results.length} {results.length === 1 ? "profesional" : "profesionales"}
-          </span>
+            {cat ? ` de ${cat}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
+            <SelectTrigger id="sort" className="w-[180px]" aria-label="Ordenar por">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SORT_LABELS) as Sort[]).map((s) => (
+                <SelectItem key={s} value={s}>{SORT_LABELS[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="inline-flex overflow-hidden rounded-lg border">
             <Button
               type="button"
@@ -321,22 +550,31 @@ export default function UserSearch() {
         <EmptyState
           icon={SearchIcon}
           title="No encontramos profesionales"
-          description="Probá ajustando los filtros."
+          description="Probá ajustando los filtros o publicá tu solicitud para que te contacten."
           action={
-            <Button variant="outline" onClick={limpiar}>
-              Limpiar filtros
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="outline" onClick={limpiar}>
+                Limpiar filtros
+              </Button>
+              <Button onClick={() => navigate("/u/requests/new")}>Publicar solicitud</Button>
+            </div>
           }
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {results.map((w) => (
-            <WorkerCard
-              key={w.id}
-              worker={w}
-              distance={distanceById[w.id]}
-              onClick={() => navigate(`/u/workers/${w.id}`)}
-            />
+            <div key={w.id} className="relative">
+              <WorkerCard
+                worker={w}
+                distance={distanceById[w.id]}
+                onClick={() => navigate(`/u/workers/${w.id}`)}
+              />
+              {/* Estado en vivo del profesional (derivado de agenda + trabajos activos) */}
+              <AvailabilityBadge
+                status={store.getAvailabilityStatus(w.id)}
+                className="pointer-events-none absolute bottom-3 right-3 shadow-sm"
+              />
+            </div>
           ))}
         </div>
       )}

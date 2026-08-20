@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Search } from "lucide-react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { Search, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -14,12 +14,24 @@ const ALL = "__all__";
 // Exploración pública (sin login). Al contactar, se pide registro.
 export default function Explore() {
   const navigate = useNavigate();
-  const [q, setQ] = useState("");
-  const [cat, setCat] = useState<string>(ALL);
+  // El buscador de la landing (tesis 2.12.2: tipo de servicio + ubicación)
+  // entra acá por query params.
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get("q") || "");
+  const [zone, setZone] = useState(params.get("zone") || "");
+  const [cat, setCat] = useState<string>(() => {
+    const c = params.get("cat");
+    return c && (CATEGORIES as readonly string[]).includes(c) ? c : ALL;
+  });
 
   const workers = useMemo(
-    () => store.getWorkers({ q: q || undefined, category: cat === ALL ? undefined : cat }),
-    [q, cat],
+    () =>
+      store.getWorkers({
+        q: q || undefined,
+        zone: zone || undefined,
+        category: cat === ALL ? undefined : cat,
+      }),
+    [q, zone, cat],
   );
 
   return (
@@ -44,6 +56,10 @@ export default function Explore() {
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" placeholder="Buscar por nombre u oficio…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <div className="relative sm:w-56">
+            <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Zona o barrio…" value={zone} onChange={(e) => setZone(e.target.value)} />
           </div>
           <Select value={cat} onValueChange={setCat}>
             <SelectTrigger className="sm:w-56"><SelectValue placeholder="Categoría" /></SelectTrigger>

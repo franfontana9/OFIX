@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle2, Briefcase, Star, Wallet, Search, Plus, Banknote, Handshake, ArrowRight, Siren } from "lucide-react";
+import { CheckCircle2, Briefcase, Star, Wallet, Search, Plus, Banknote, Handshake, ArrowRight, Siren, Send, TrendingUp, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ofix/PageHeader";
@@ -23,13 +23,41 @@ export default function WorkerHome() {
     <div className="space-y-8">
       <PageHeader title={`Hola, ${user?.name?.split(" ")[0]}`} subtitle="Este es el resumen de tu actividad en OFIX." />
 
-      {/* Estadísticas */}
+      {/* Las 4 métricas del dashboard del trabajador (tesis 2.12.5) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={CheckCircle2} label="Trabajos completados" value={stats.totalJobs} tone="success" />
-        <StatCard icon={Briefcase} label="Trabajos activos" value={stats.activeJobs} tone="primary" />
-        <StatCard icon={Star} label="Calificación" value={stats.rating ? stats.rating.toFixed(1) : "—"} tone="accent" hint={`${stats.reviewCount} reseñas`} />
-        <StatCard icon={Wallet} label="Ingresos disponibles" value={`$${stats.wallet.available.toLocaleString()}`} tone="success" />
+        <StatCard icon={Send} label="Propuestas enviadas" value={stats.proposalsSent} tone="primary" hint={`${stats.acceptanceRate}% aceptadas`} />
+        <StatCard icon={Briefcase} label="Trabajos activos" value={stats.activeJobs} tone="accent" />
+        <StatCard icon={Star} label="Calificación promedio" value={stats.rating ? stats.rating.toFixed(1) : "—"} tone="accent" hint={`${stats.reviewCount} reseñas`} />
+        <StatCard icon={TrendingUp} label="Ingresos del mes" value={`$${stats.monthIncome.toLocaleString("es-AR")}`} tone="success" />
       </div>
+
+      {/* Segunda línea: histórico y billetera */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard icon={CheckCircle2} label="Trabajos completados" value={stats.totalJobs} tone="success" />
+        <StatCard icon={Wallet} label="Disponible para retirar" value={`$${stats.wallet.available.toLocaleString("es-AR")}`} tone="success" />
+        <StatCard
+          icon={Timer}
+          label="Tu tasa de respuesta"
+          value={`${stats.responseRate}%`}
+          tone={stats.responseRate >= 70 ? "primary" : "muted"}
+          hint={stats.avgResponseMinutes !== null ? `respondés en ~${stats.avgResponseMinutes} min` : "sin datos todavía"}
+        />
+      </div>
+
+      {/* Fondos congelados por un reclamo abierto */}
+      {stats.wallet.frozen > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="flex items-start gap-3 p-4 text-sm">
+            <Siren className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <p>
+              <span className="font-semibold text-destructive">
+                ${stats.wallet.frozen.toLocaleString("es-AR")} congelados
+              </span>{" "}
+              por un reclamo abierto. Se liberan cuando OFIX resuelve el caso.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Emergencias cercanas */}
       {emergencies.length > 0 && (

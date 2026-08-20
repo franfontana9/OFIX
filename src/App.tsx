@@ -17,6 +17,10 @@ const Register = lazy(() => import("@/pages/auth/Register"));
 const Forgot = lazy(() => import("@/pages/auth/Forgot"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+// Seguimiento compartido con un contacto de confianza: público, sin login.
+const TrackShared = lazy(() => import("@/pages/TrackShared"));
+// Panel interno con los KPIs y la salud del marketplace (tesis 3.5 y 3.6.3).
+const Metrics = lazy(() => import("@/pages/Metrics"));
 
 // Usuario / cliente
 const UserHome = lazy(() => import("@/pages/u/Home"));
@@ -31,6 +35,10 @@ const UserJobs = lazy(() => import("@/pages/u/Jobs"));
 const UserJobDetail = lazy(() => import("@/pages/u/JobDetail"));
 const UserReceipt = lazy(() => import("@/pages/u/Receipt"));
 const UserReview = lazy(() => import("@/pages/u/Review"));
+const UserDispute = lazy(() => import("@/pages/u/Dispute"));
+const UserWarranty = lazy(() => import("@/pages/u/Warranty"));
+const UserProperties = lazy(() => import("@/pages/u/Properties"));
+const UserRecurring = lazy(() => import("@/pages/u/Recurring"));
 const UserFavorites = lazy(() => import("@/pages/u/Favorites"));
 const UserEmergency = lazy(() => import("@/pages/u/Emergency"));
 const UserBusiness = lazy(() => import("@/pages/u/Business"));
@@ -80,7 +88,14 @@ export default function App() {
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/register" element={<Register />} />
           <Route path="/auth/forgot" element={<Forgot />} />
+          {/* Link que el cliente comparte con un familiar: no requiere cuenta. */}
+          <Route path="/t/:token" element={<TrackShared />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+
+          {/* Panel de métricas: cualquier rol autenticado (demo interna) */}
+          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route path="/panel" element={<Metrics />} />
+          </Route>
 
           {/* Usuario / cliente */}
           <Route element={<ProtectedRoute requiredRole="user"><AppLayout /></ProtectedRoute>}>
@@ -96,6 +111,10 @@ export default function App() {
             <Route path="/u/jobs/:id" element={<UserJobDetail />} />
             <Route path="/u/jobs/:id/receipt" element={<UserReceipt />} />
             <Route path="/u/jobs/:id/review" element={<UserReview />} />
+            <Route path="/u/jobs/:id/dispute" element={<UserDispute />} />
+            <Route path="/u/jobs/:id/warranty" element={<UserWarranty />} />
+            <Route path="/u/properties" element={<UserProperties />} />
+            <Route path="/u/recurring" element={<UserRecurring />} />
             <Route path="/u/favorites" element={<UserFavorites />} />
             <Route path="/u/emergency/:id" element={<UserEmergency />} />
             <Route path="/u/business" element={<UserBusiness />} />

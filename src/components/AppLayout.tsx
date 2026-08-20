@@ -17,6 +17,8 @@ import {
   Wallet,
   TrendingUp,
   Crown,
+  Repeat,
+  Gauge,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
@@ -47,6 +49,14 @@ const USER_NAV: NavItem[] = [
   { to: "/u/notifications", label: "Notificaciones", icon: Bell },
   { to: "/u/profile", label: "Mi perfil", icon: UserIcon },
 ];
+
+// Accesos que solo aplican a algunos tipos de cliente.
+const PROPERTIES_NAV: NavItem = { to: "/u/properties", label: "Mis propiedades", icon: Building2 };
+const RECURRING_NAV: NavItem = { to: "/u/recurring", label: "Mantenimiento", icon: Repeat };
+const BUSINESS_NAV: NavItem = { to: "/u/business", label: "Panel PyME", icon: Building2 };
+const CONSORCIO_NAV: NavItem = { to: "/u/business", label: "Panel de administración", icon: Building2 };
+// Panel interno de métricas del marketplace (demo de los KPIs de la tesis).
+const METRICS_NAV: NavItem = { to: "/panel", label: "Panel OFIX", icon: Gauge };
 
 const WORKER_NAV: NavItem[] = [
   { to: "/w/home", label: "Inicio", icon: Home },
@@ -99,8 +109,18 @@ export function AppLayout() {
   const isWorker = user?.role === "worker";
   const nav = isWorker ? WORKER_NAV : USER_NAV;
   const tabs = isWorker ? WORKER_TABS : USER_TABS;
-  const showBusiness = user?.role === "user" && user?.clientType === "pyme_gastronomica";
-  const fullNav = showBusiness ? [...nav.slice(0, 6), { to: "/u/business", label: "Panel PyME", icon: Building2 }, ...nav.slice(6)] : nav;
+
+  // El menú del cliente cambia según el tipo: la PyME ve su panel, y el
+  // administrador de consorcios además gestiona propiedades (entrevista 8).
+  const isPyme = user?.role === "user" && user?.clientType === "pyme_gastronomica";
+  const isAdmin = user?.role === "user" && user?.clientType === "administrador_consorcio";
+  const extras: NavItem[] = [];
+  if (isAdmin) extras.push(CONSORCIO_NAV, PROPERTIES_NAV, RECURRING_NAV);
+  else if (isPyme) extras.push(BUSINESS_NAV, RECURRING_NAV);
+  const fullNav = [
+    ...(extras.length ? [...nav.slice(0, 6), ...extras, ...nav.slice(6)] : nav),
+    METRICS_NAV,
+  ];
   const unread = user ? store.unreadCount(user.id) : 0;
 
   return (

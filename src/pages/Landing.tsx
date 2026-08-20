@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ShieldCheck,
   Lock,
@@ -105,6 +105,20 @@ const WORKER_PERKS = [
 ];
 
 export default function Landing() {
+  const navigate = useNavigate();
+
+  // El buscador manda a la exploración pública (sin registro) con los filtros.
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const q = String(form.get("q") || "").trim();
+    const zone = String(form.get("zone") || "").trim();
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (zone) params.set("zone", zone);
+    navigate(`/explorar${params.toString() ? `?${params}` : ""}`);
+  };
+
   return (
     <div className="animate-page min-h-screen overflow-x-hidden bg-background">
       {/* Header */}
@@ -159,13 +173,41 @@ export default function Landing() {
                 Oficios verificados en toda Argentina
               </div>
               <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight md:text-6xl">
-                Tu solución confiable,{" "}
-                <span className="bg-gradient-primary bg-clip-text text-transparent">a un clic</span>
+                Encontrá el profesional{" "}
+                <span className="bg-gradient-primary bg-clip-text text-transparent">que necesitás</span>
               </h1>
               <p className="mx-auto max-w-md text-lg text-muted-foreground md:mx-0">
-                El marketplace de oficios que conecta clientes con trabajadores verificados. Plomería,
-                electricidad, gas y mucho más, con pago protegido y seguro incluido.
+                Conectamos usuarios con trabajadores verificados de oficios. Rápido, seguro y confiable.
               </p>
+
+              {/* Buscador central: tipo de servicio + ubicación (tesis 2.12.2) */}
+              <form onSubmit={handleSearch} className="mx-auto max-w-lg md:mx-0">
+                <div className="flex flex-col gap-2 rounded-2xl border border-border bg-background/80 p-2 shadow-lg backdrop-blur sm:flex-row">
+                  <div className="relative flex-1">
+                    <Wrench className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      name="q"
+                      aria-label="Qué servicio necesitás"
+                      placeholder="¿Qué necesitás? Electricista, plomero…"
+                      className="h-11 w-full rounded-xl bg-transparent pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div className="relative flex-1 sm:max-w-[42%]">
+                    <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      name="zone"
+                      aria-label="Ubicación"
+                      placeholder="Tu zona o barrio"
+                      className="h-11 w-full rounded-xl bg-transparent pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <Button type="submit" size="lg" className="h-11 gap-2 shadow-sm">
+                    <Search className="h-4 w-4" />
+                    Buscar
+                  </Button>
+                </div>
+              </form>
+
               <div className="flex flex-col justify-center gap-3 sm:flex-row md:justify-start">
                 <Button asChild size="lg" className="gap-2 shadow-lg transition-shadow hover:shadow-xl">
                   <Link to="/auth/register?role=user">
@@ -181,7 +223,7 @@ export default function Landing() {
                 >
                   <Link to="/auth/register?role=worker">
                     <Wrench className="h-5 w-5" />
-                    Ofrecé tus servicios
+                    Ofrecé servicios
                   </Link>
                 </Button>
               </div>
@@ -415,7 +457,7 @@ export default function Landing() {
               >
                 <Link to="/auth/register?role=worker">
                   <Wrench className="h-5 w-5" />
-                  Ofrecé tus servicios
+                  Ofrecé servicios
                 </Link>
               </Button>
             </div>
