@@ -1,0 +1,247 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 221 83% 95%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 25 95% 95%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 221 83% 53%;
+    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(221 83% 63%));
+    --gradient-accent: linear-gradient(135deg, hsl(25 95% 53%), hsl(25 95% 63%));
+    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(222 47% 11% / 0.1);
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 0 0% 100%;
+    --card: 217 33% 17%;
+    --card-foreground: 0 0% 100%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 221 83% 25%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 25 95% 25%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 25%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 221 83% 53%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 221 83% 53%;
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif,
+      "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+  }
+  /* Scrollbars sutiles */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-muted-foreground/20;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+}
+
+@layer utilities {
+  /* Entrada suave del contenido de página */
+  .animate-page {
+    animation: page-in 0.28s ease-out both;
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Ping del pin "tu ubicación" en el mapa real */
+  @keyframes ofixping {
+    0% { transform: scale(0.6); opacity: 0.7; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+
+  /* Shimmer para skeletons */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--muted));
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, hsl(var(--background) / 0.45), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
+  /* Corazón favorito */
+  @keyframes pop {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
+  .animate-pop { animation: pop 0.32s ease-out; }
+
+  /* Glows */
+  .glow-primary { box-shadow: 0 10px 40px -12px hsl(var(--primary) / 0.45); }
+  .glow-accent { box-shadow: 0 10px 40px -12px hsl(var(--accent) / 0.45); }
+  /* Tarjeta interactiva: sube y brilla al pasar el mouse */
+  .glow-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .glow-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px -14px hsl(var(--primary) / 0.35);
+    border-color: hsl(var(--primary) / 0.35);
+  }
+  /* Fondo con resplandor radial suave para secciones hero */
+  .glow-bg { position: relative; }
+  .glow-bg::before {
+    content: "";
+    position: absolute;
+    inset: -20% -10% auto -10%;
+    height: 320px;
+    background: radial-gradient(60% 100% at 30% 0%, hsl(var(--primary) / 0.18), transparent 70%),
+      radial-gradient(50% 100% at 90% 0%, hsl(var(--accent) / 0.14), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+/* Accesibilidad: foco visible y respeto por reduced-motion */
+@layer base {
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Impresión / PDF: solo se imprime .print-sheet (comprobantes).
+   Se saca el shell (sidebar, header, bottom nav) y se fuerza fondo blanco. */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  html, body {
+    background: #fff !important;
+  }
+  body {
+    /* Los colores de marca deben salir en el papel. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  aside,
+  header,
+  nav,
+  .print-hide {
+    display: none !important;
+  }
+  /* El contenedor de página deja de recortar/desplazar la hoja. */
+  main {
+    padding: 0 !important;
+  }
+  .animate-page {
+    animation: none !important;
+  }
+  [class*="md:pl-"] {
+    padding-left: 0 !important;
+  }
+  .print-sheet {
+    max-width: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+}
