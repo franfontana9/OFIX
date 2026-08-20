@@ -43,22 +43,10 @@ export function WorkerCard({
       onClick={onClick}
       className={onClick ? "glow-hover cursor-pointer" : undefined}
     >
-      <CardContent className={cn("relative", compact ? "p-3" : "p-4")}>
-        {canFav && (
-          <button
-            onClick={toggleFav}
-            aria-label={fav ? "Quitar de favoritos" : "Agregar a favoritos"}
-            className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted"
-          >
-            <Heart
-              onAnimationEnd={() => setPop(false)}
-              className={cn("h-5 w-5 transition-colors", fav && "fill-destructive text-destructive", pop && "animate-pop")}
-            />
-          </button>
-        )}
+      <CardContent className={compact ? "p-3" : "p-4"}>
         <div className="flex items-start gap-3">
           <UserAvatar name={worker.name} photo={worker.photo} className={compact ? "h-11 w-11" : "h-14 w-14"} />
-          <div className="min-w-0 flex-1 pr-6">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="truncate font-semibold">{worker.name}</h3>
               {worker.premium && <span className="text-xs font-medium text-accent">★ Destacado</span>}
@@ -98,12 +86,31 @@ export function WorkerCard({
               </>
             )}
           </div>
-          {typeof worker.hourlyRate === "number" && worker.hourlyRate > 0 && (
-            <div className="shrink-0 text-right">
-              <p className="font-bold">${worker.hourlyRate.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">por hora</p>
-            </div>
-          )}
+          {/* Columna derecha: favorito arriba, precio abajo. Van apilados en la
+              misma columna porque antes el corazón iba en absolute y el precio
+              le quedaba justo debajo, superponiéndose. */}
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {canFav && (
+              <button
+                onClick={toggleFav}
+                aria-label={fav ? "Quitar de favoritos" : "Agregar a favoritos"}
+                className="-mr-1 -mt-1 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+              >
+                <Heart
+                  onAnimationEnd={() => setPop(false)}
+                  className={cn("h-5 w-5 transition-colors", fav && "fill-destructive text-destructive", pop && "animate-pop")}
+                />
+              </button>
+            )}
+            {typeof worker.hourlyRate === "number" && worker.hourlyRate > 0 && (
+              <div className="text-right">
+                <p className="whitespace-nowrap font-bold leading-tight">
+                  ${worker.hourlyRate.toLocaleString("es-AR")}
+                </p>
+                <p className="text-xs text-muted-foreground">por hora</p>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
