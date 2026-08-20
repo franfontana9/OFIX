@@ -61,13 +61,19 @@ export function WorkerCard({
             </div>
             {!compact && (
               <>
-                {/* Barra de confianza */}
-                <div className="mt-2.5 flex items-center gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-success" />
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-success" style={{ width: `${score}%` }} />
+                {/* Barra de confianza. Lleva etiqueta: un "99%" suelto al lado
+                    de un escudo no dice qué se está midiendo. */}
+                <div className="mt-2.5" title="Combina verificación, reseñas y trabajos completados">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                      Confianza
+                    </span>
+                    <span className="text-xs font-semibold text-success">{score}%</span>
                   </div>
-                  <span className="text-xs font-semibold text-success">{score}%</span>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-success transition-all" style={{ width: `${score}%` }} />
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   {worker.coverageZone && (
