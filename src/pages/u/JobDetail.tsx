@@ -1,6 +1,6 @@
 import { useReducer } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { CheckCircle2, MessageCircle, Star, ShieldCheck, CalendarClock, PlayCircle, PartyPopper, Lock, FileText } from "lucide-react";
+import { CheckCircle2, MessageCircle, Star, ShieldCheck, CalendarClock, PlayCircle, PartyPopper, Lock, FileText, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ofix/PageHeader";
@@ -12,19 +12,13 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
-import { PAYMENT_METHOD_LABELS, type JobStatus, type PaymentStatus } from "@/lib/types";
+import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS, type JobStatus } from "@/lib/types";
 
 const money = (n: number) => `$${n.toLocaleString()}`;
 
-const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
-  pendiente: "Pendiente de pago",
-  retenido: "Retenido en garantía",
-  liberado: "Liberado al profesional",
-  reembolsado: "Reembolsado",
-};
-
 const TIMELINE: { status: JobStatus; label: string; icon: typeof CalendarClock }[] = [
   { status: "agendado", label: "Agendado", icon: CalendarClock },
+  { status: "en_camino", label: "En camino", icon: Navigation },
   { status: "en_progreso", label: "En progreso", icon: PlayCircle },
   { status: "completado", label: "Completado", icon: CheckCircle2 },
 ];

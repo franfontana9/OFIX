@@ -96,6 +96,7 @@ export function ProposalStatusBadge({ status, className }: { status: ProposalSta
 export function JobStatusBadge({ status, className }: { status: JobStatus; className?: string }) {
   const variant: Record<JobStatus, BadgeVariant> = {
     agendado: "accent",
+    en_camino: "default",
     en_progreso: "default",
     completado: "success",
     cancelado: "destructive",

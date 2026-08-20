@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, MessageCircle, DollarSign, Calendar, FileText, Siren, CheckCheck } from "lucide-react";
+import { Bell, MessageCircle, DollarSign, Calendar, FileText, Siren, CheckCheck, Navigation, ShieldAlert } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,8 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   reserva: Calendar,
   oferta: FileText,
   emergencia: Siren,
+  seguimiento: Navigation,
+  reclamo: ShieldAlert,
   sistema: Bell,
 };
 
@@ -26,6 +28,8 @@ const TONES: Record<NotificationType, string> = {
   reserva: "bg-accent-light text-accent",
   oferta: "bg-primary-light text-primary",
   emergencia: "bg-destructive/10 text-destructive",
+  seguimiento: "bg-primary-light text-primary",
+  reclamo: "bg-destructive/10 text-destructive",
   sistema: "bg-muted text-muted-foreground",
 };
 

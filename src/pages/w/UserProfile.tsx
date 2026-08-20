@@ -7,12 +7,7 @@ import { UserAvatar } from "@/components/ofix/UserAvatar";
 import { StarRating } from "@/components/ofix/StarRating";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
-import type { ClientType } from "@/lib/types";
-
-const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
-  hogar: "Hogar",
-  pyme_gastronomica: "PyME Gastronómica",
-};
+import { CLIENT_TYPE_LABELS } from "@/lib/types";
 
 export default function WorkerUserProfile() {
   const { id } = useParams<{ id: string }>();

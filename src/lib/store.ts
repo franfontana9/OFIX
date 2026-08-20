@@ -1,43 +1,76 @@
 // Data layer — capa de datos de OFIX Connect. Store en memoria persistido a
 // localStorage ("ofix-data") con un token falso ("ofix-token"). Sin backend:
-// simula pagos (escrow), verificación KYC, seguros y geolocalización.
+// simula pagos (escrow), verificación KYC, seguros, geolocalización y el
+// seguimiento en tiempo real del servicio.
+//
+// Nota sobre el "tiempo real": no hay timers ni websockets. El avance del
+// trayecto se DERIVA de los timestamps (salida + ETA vs. reloj actual), así que
+// cada render recalcula la posición y el ETA restante. Es determinista,
+// sobrevive a un refresh y no necesita backend.
 import {
   CATEGORIES,
+  DEFAULT_INSURANCE_PLAN_ID,
+  DEFAULT_ONCALL_SURCHARGE_RATE,
+  DEFAULT_WARRANTY_DAYS,
+  ESCALATION_RADIUS_STEPS_KM,
+  FREQUENCY_DAYS,
   INSURANCE_PLANS,
   LEVEL_THRESHOLDS,
+  MANDATORY_INSURANCE_CATEGORIES,
   OFIX_COMMISSION_RATE,
+  RESPONSE_WINDOW_MINUTES,
+  type ArrivalCard,
   type AuthProvider,
+  type AvailabilityStatus,
+  type BillingPeriod,
   type Chat,
+  type ClientPlan,
   type ClientType,
+  type Complexity,
+  type DemandInsight,
+  type Dispute,
+  type DisputeReason,
+  type DisputeStatus,
   type Favorite,
+  type Frequency,
+  type Geo,
   type Job,
+  type JobTimelineEvent,
+  type MarketplaceMetrics,
   type Message,
   type Notification,
   type NotificationType,
+  type NpsResponse,
   type Offer,
   type OfferStatus,
   type Payment,
   type PaymentMethod,
   type Payout,
-  type BillingPeriod,
+  type PriceReference,
+  type Property,
   type Proposal,
   type ProposalStatus,
   type PublicUser,
   type Receipt,
   type ReceiptKind,
+  type RecurringPlan,
   type Review,
   type Role,
   type Service,
+  type TrackingState,
   type Urgency,
   type User,
   type Verification,
+  type WarrantyClaim,
   type WorkerLevel,
+  type WorkSchedule,
+  type ZoneLiquidity,
 } from "./types";
 
 const DATA_KEY = "ofix-data";
 const TOKEN_KEY = "ofix-token";
 // Bump cuando cambia el esquema de datos: invalida el localStorage viejo y re-seedea.
-const DATA_VERSION = 5;
+const DATA_VERSION = 6;
 
 // Foto real y temática (Creative Commons) por palabra clave, para el seed.
 function photo(keyword: string, lock: number, w = 480, h = 360): string {
@@ -48,8 +81,13 @@ function avatar(gender: "men" | "women", n: number): string {
   return `https://randomuser.me/api/portraits/${gender}/${n}.jpg`;
 }
 
+const FULL_WEEK: WorkSchedule = { days: [1, 2, 3, 4, 5, 6], from: "08:00", to: "20:00" };
+const WEEKDAYS: WorkSchedule = { days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00" };
+const ALL_DAY: WorkSchedule = { days: [0, 1, 2, 3, 4, 5, 6], from: "00:00", to: "23:59" };
+
 class DataStore {
   users: User[] = [];
+  properties: Property[] = [];
   offers: Offer[] = [];
   proposals: Proposal[] = [];
   services: Service[] = [];
@@ -61,12 +99,17 @@ class DataStore {
   chats: Chat[] = [];
   messages: Message[] = [];
   payouts: Payout[] = [];
+  disputes: Dispute[] = [];
+  warrantyClaims: WarrantyClaim[] = [];
+  recurringPlans: RecurringPlan[] = [];
+  npsResponses: NpsResponse[] = [];
   currentToken: string | null = null;
   currentUser: User | null = null;
 
   constructor() {
     this.loadFromStorage();
     if (this.users.length === 0) this.seedData();
+    this.runRecurringPlans();
   }
 
   private loadFromStorage() {
@@ -81,6 +124,7 @@ class DataStore {
           return;
         }
         this.users = d.users || [];
+        this.properties = d.properties || [];
         this.offers = d.offers || [];
         this.proposals = d.proposals || [];
         this.services = d.services || [];
@@ -92,6 +136,10 @@ class DataStore {
         this.chats = d.chats || [];
         this.messages = d.messages || [];
         this.payouts = d.payouts || [];
+        this.disputes = d.disputes || [];
+        this.warrantyClaims = d.warrantyClaims || [];
+        this.recurringPlans = d.recurringPlans || [];
+        this.npsResponses = d.npsResponses || [];
       }
       const token = localStorage.getItem(TOKEN_KEY);
       if (token) {
@@ -114,6 +162,7 @@ class DataStore {
         JSON.stringify({
           version: DATA_VERSION,
           users: this.users,
+          properties: this.properties,
           offers: this.offers,
           proposals: this.proposals,
           services: this.services,
@@ -125,6 +174,10 @@ class DataStore {
           chats: this.chats,
           messages: this.messages,
           payouts: this.payouts,
+          disputes: this.disputes,
+          warrantyClaims: this.warrantyClaims,
+          recurringPlans: this.recurringPlans,
+          npsResponses: this.npsResponses,
         }),
       );
       return true;
@@ -138,84 +191,125 @@ class DataStore {
   private seedData() {
     const t = new Date().toISOString();
     const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
+    const minsAgo = (n: number) => new Date(Date.now() - n * 60000).toISOString();
     const fullVerif: Verification = { identity: true, background: true, license: true };
 
     this.users = [
-      { id: "u1", name: "María García", email: "maria@example.com", password: "password123", phone: "+54 11 1234-5678", role: "user", clientType: "hogar", zone: "Palermo, CABA", address: "Av. Santa Fe 3200", geo: { lat: -34.5885, lng: -58.4105 }, photo: avatar("women", 68), rating: 4.7, reviewCount: 6, createdAt: daysAgo(120), updatedAt: t },
-      { id: "u2", name: "Carlos López", email: "carlos@example.com", password: "password123", phone: "+54 11 2345-6789", role: "user", clientType: "hogar", zone: "Belgrano, CABA", geo: { lat: -34.5627, lng: -58.4583 }, photo: avatar("men", 32), rating: 4.5, reviewCount: 3, createdAt: daysAgo(90), updatedAt: t },
-      { id: "u3", name: "Bodegón La Esquina", email: "bodegon@example.com", password: "password123", phone: "+54 11 5555-1010", role: "user", clientType: "pyme_gastronomica", zone: "San Telmo, CABA", geo: { lat: -34.6208, lng: -58.3735 }, photo: photo("restaurant,bar", 21, 200, 200), rating: 4.8, reviewCount: 12, createdAt: daysAgo(200), updatedAt: t },
-      { id: "w1", name: "Juan Pérez", email: "juan@example.com", password: "password123", phone: "+54 11 3456-7890", role: "worker", trade: "Plomería", trades: ["Plomería", "Gas"], coverageZone: "Palermo, Villa Crespo, Caballito", hourlyRate: 3500, bio: "Plomero matriculado con más de 10 años de experiencia en urgencias del hogar. Trabajo garantizado.", verified: true, verification: fullVerif, level: "gold", rating: 4.8, reviewCount: 34, jobsDone: 42, premium: true, available: true, zone: "Palermo, CABA", geo: { lat: -34.5889, lng: -58.4298 }, photo: avatar("men", 45), createdAt: daysAgo(300), updatedAt: t },
-      { id: "w2", name: "Ana Rodríguez", email: "ana@example.com", password: "password123", phone: "+54 11 4567-8901", role: "worker", trade: "Electricidad", trades: ["Electricidad", "Aire acondicionado"], coverageZone: "Belgrano, Núñez, Colegiales", hourlyRate: 4000, bio: "Electricista matriculada. Instalaciones, tableros y reparaciones. Presupuesto sin cargo.", verified: true, verification: fullVerif, level: "silver", rating: 4.9, reviewCount: 18, jobsDone: 21, premium: false, available: true, zone: "Belgrano, CABA", geo: { lat: -34.5610, lng: -58.4560 }, photo: avatar("women", 44), createdAt: daysAgo(220), updatedAt: t },
-      { id: "w3", name: "Diego Fernández", email: "diego@example.com", password: "password123", phone: "+54 11 6789-0123", role: "worker", trade: "Cerrajería", trades: ["Cerrajería"], coverageZone: "CABA (toda la ciudad)", hourlyRate: 3000, bio: "Cerrajero 24hs. Aperturas, cambio de cerraduras y seguridad. Respuesta rápida.", verified: true, verification: { identity: true, background: true, license: false }, level: "silver", rating: 4.6, reviewCount: 11, jobsDone: 15, premium: false, available: true, zone: "Almagro, CABA", geo: { lat: -34.6100, lng: -58.4200 }, photo: avatar("men", 76), createdAt: daysAgo(150), updatedAt: t },
-      { id: "w4", name: "Lucía Martínez", email: "lucia@example.com", password: "password123", phone: "+54 11 7890-1234", role: "worker", trade: "Pintura", trades: ["Pintura", "Mantenimiento"], coverageZone: "Caballito, Flores, Almagro", hourlyRate: 2800, bio: "Pintora profesional. Interiores y exteriores, trabajos prolijos y en fecha.", verified: false, verification: { identity: true, background: false, license: false }, level: "bronze", rating: 4.3, reviewCount: 4, jobsDone: 6, premium: false, available: false, zone: "Caballito, CABA", geo: { lat: -34.6190, lng: -58.4400 }, photo: avatar("women", 65), createdAt: daysAgo(60), updatedAt: t },
+      { id: "u1", name: "María García", email: "maria@example.com", password: "password123", phone: "+54 11 1234-5678", role: "user", clientType: "hogar", clientPlan: "free", zone: "Palermo, CABA", address: "Av. Santa Fe 3200", geo: { lat: -34.5885, lng: -58.4105 }, photo: avatar("women", 68), rating: 4.7, reviewCount: 6, createdAt: daysAgo(120), updatedAt: t },
+      { id: "u2", name: "Carlos López", email: "carlos@example.com", password: "password123", phone: "+54 11 2345-6789", role: "user", clientType: "hogar", clientPlan: "free", zone: "Belgrano, CABA", address: "Av. Cabildo 1800", geo: { lat: -34.5627, lng: -58.4583 }, photo: avatar("men", 32), rating: 4.5, reviewCount: 3, createdAt: daysAgo(90), updatedAt: t },
+      { id: "u3", name: "Bodegón La Esquina", email: "bodegon@example.com", password: "password123", phone: "+54 11 5555-1010", role: "user", clientType: "pyme_gastronomica", clientPlan: "plus", zone: "San Telmo, CABA", address: "Defensa 1200", geo: { lat: -34.6208, lng: -58.3735 }, photo: photo("restaurant,bar", 21, 200, 200), rating: 4.8, reviewCount: 12, createdAt: daysAgo(200), updatedAt: t },
+      { id: "u4", name: "Administración Rivadavia", email: "consorcios@example.com", password: "password123", phone: "+54 11 4444-2020", role: "user", clientType: "administrador_consorcio", clientPlan: "plus", zone: "Caballito, CABA", address: "Av. Rivadavia 5400", geo: { lat: -34.6180, lng: -58.4420 }, photo: photo("building,apartment", 22, 200, 200), rating: 4.6, reviewCount: 9, createdAt: daysAgo(260), updatedAt: t },
+
+      { id: "w1", name: "Juan Pérez", email: "juan@example.com", password: "password123", phone: "+54 11 3456-7890", role: "worker", trade: "Plomería", trades: ["Plomería", "Gas"], coverageZone: "Palermo, Villa Crespo, Caballito", hourlyRate: 3500, bio: "Plomero matriculado con más de 10 años de experiencia en urgencias del hogar. Trabajo garantizado.", verified: true, verification: fullVerif, level: "gold", rating: 4.8, reviewCount: 34, jobsDone: 42, premium: true, available: true, workSchedule: FULL_WEEK, onCallWeekends: true, onCallSurcharge: 20, vehicle: "Kangoo blanca — AB 123 CD", invitesReceived: 40, invitesAnswered: 36, responseMinutesTotal: 320, zone: "Palermo, CABA", geo: { lat: -34.5889, lng: -58.4298 }, photo: avatar("men", 45), createdAt: daysAgo(300), updatedAt: t },
+      { id: "w2", name: "Ana Rodríguez", email: "ana@example.com", password: "password123", phone: "+54 11 4567-8901", role: "worker", trade: "Electricidad", trades: ["Electricidad", "Aire acondicionado"], coverageZone: "Belgrano, Núñez, Colegiales", hourlyRate: 4000, bio: "Electricista matriculada. Instalaciones, tableros y reparaciones. Presupuesto sin cargo.", verified: true, verification: fullVerif, level: "silver", rating: 4.9, reviewCount: 18, jobsDone: 21, premium: false, available: true, workSchedule: WEEKDAYS, onCallWeekends: false, vehicle: "Partner gris — AC 456 EF", invitesReceived: 22, invitesAnswered: 19, responseMinutesTotal: 240, zone: "Belgrano, CABA", geo: { lat: -34.5610, lng: -58.4560 }, photo: avatar("women", 44), createdAt: daysAgo(220), updatedAt: t },
+      { id: "w3", name: "Diego Fernández", email: "diego@example.com", password: "password123", phone: "+54 11 6789-0123", role: "worker", trade: "Cerrajería", trades: ["Cerrajería"], coverageZone: "CABA (toda la ciudad)", hourlyRate: 3000, bio: "Cerrajero 24hs. Aperturas, cambio de cerraduras y seguridad. Respuesta rápida.", verified: true, verification: { identity: true, background: true, license: false }, level: "silver", rating: 4.6, reviewCount: 11, jobsDone: 15, premium: false, available: true, workSchedule: ALL_DAY, onCallWeekends: true, onCallSurcharge: 25, vehicle: "Moto Honda — 123 ABC", invitesReceived: 18, invitesAnswered: 17, responseMinutesTotal: 90, zone: "Almagro, CABA", geo: { lat: -34.6100, lng: -58.4200 }, photo: avatar("men", 76), createdAt: daysAgo(150), updatedAt: t },
+      { id: "w4", name: "Lucía Martínez", email: "lucia@example.com", password: "password123", phone: "+54 11 7890-1234", role: "worker", trade: "Pintura", trades: ["Pintura", "Mantenimiento"], coverageZone: "Caballito, Flores, Almagro", hourlyRate: 2800, bio: "Pintora profesional. Interiores y exteriores, trabajos prolijos y en fecha.", verified: false, verification: { identity: true, background: false, license: false }, level: "bronze", rating: 4.3, reviewCount: 4, jobsDone: 6, premium: false, available: false, workSchedule: WEEKDAYS, onCallWeekends: false, invitesReceived: 12, invitesAnswered: 6, responseMinutesTotal: 300, zone: "Caballito, CABA", geo: { lat: -34.6190, lng: -58.4400 }, photo: avatar("women", 65), createdAt: daysAgo(60), updatedAt: t },
+    ];
+
+    // Propiedades del administrador de consorcios (u4).
+    this.properties = [
+      { id: "prop1", ownerId: "u4", name: "Edificio Rivadavia 5400", address: "Av. Rivadavia 5400", zone: "Caballito, CABA", geo: { lat: -34.6180, lng: -58.4420 }, units: 24, notes: "Portero de 8 a 16. Tablero general en el subsuelo.", createdAt: daysAgo(260) },
+      { id: "prop2", ownerId: "u4", name: "Consorcio Güemes 3100", address: "Güemes 3100", zone: "Palermo, CABA", geo: { lat: -34.5905, lng: -58.4120 }, units: 12, notes: "Sin portero. Coordinar con la administración.", createdAt: daysAgo(240) },
+      { id: "prop3", ownerId: "u4", name: "Torre Nazca 2200", address: "Av. Nazca 2200", zone: "Villa del Parque, CABA", geo: { lat: -34.6060, lng: -58.4880 }, units: 40, notes: "Bombas de agua en la terraza.", createdAt: daysAgo(180) },
     ];
 
     this.services = [
-      { id: "s1", workerId: "w1", title: "Reparación de pérdidas de agua", category: "Plomería", description: "Detección y reparación de pérdidas con garantía de 6 meses.", price: 3500, duration: "1-2 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: true, images: [photo("plumbing,pipe", 31), photo("plumber", 32)], active: true, views: 145, createdAt: daysAgo(80), updatedAt: t },
-      { id: "s2", workerId: "w1", title: "Instalación de termotanque", category: "Plomería", description: "Instalación completa de termotanque eléctrico o a gas.", price: 8000, duration: "4-5 horas", schedule: "Lun a Vie 9-18hs", withUrgency: false, images: [photo("water,heater", 33)], active: true, views: 87, createdAt: daysAgo(70), updatedAt: t },
-      { id: "s3", workerId: "w2", title: "Instalación de iluminación LED", category: "Electricidad", description: "Colocación de artefactos y luminarias LED, incluye materiales.", price: 4500, duration: "2-4 horas", schedule: "Lun a Vie 9-19hs", withUrgency: false, images: [photo("lightbulb,led", 34)], active: true, views: 62, createdAt: daysAgo(50), updatedAt: t },
-      { id: "s4", workerId: "w2", title: "Reparación de tablero eléctrico", category: "Electricidad", description: "Diagnóstico y reparación de tableros, disyuntores y térmicas.", price: 6000, duration: "1-3 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: true, images: [photo("electrical,panel", 35)], active: true, views: 40, createdAt: daysAgo(40), updatedAt: t },
-      { id: "s5", workerId: "w3", title: "Apertura de puertas 24hs", category: "Cerrajería", description: "Apertura sin daño y cambio de cerradura en el acto.", price: 5000, duration: "30-60 min", schedule: "24 horas", withUrgency: true, images: [photo("lock,key", 36)], active: true, views: 210, createdAt: daysAgo(30), updatedAt: t },
+      { id: "s1", workerId: "w1", title: "Reparación de pérdidas de agua", category: "Plomería", description: "Detección y reparación de pérdidas con garantía de 6 meses.", price: 3500, duration: "1-2 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: true, complexity: "intermedia", warrantyDays: 180, images: [photo("plumbing,pipe", 31), photo("plumber", 32)], active: true, views: 145, createdAt: daysAgo(80), updatedAt: t },
+      { id: "s2", workerId: "w1", title: "Instalación de termotanque", category: "Plomería", description: "Instalación completa de termotanque eléctrico o a gas.", price: 8000, duration: "4-5 horas", schedule: "Lun a Vie 9-18hs", withUrgency: false, complexity: "compleja", warrantyDays: 90, images: [photo("water,heater", 33)], active: true, views: 87, createdAt: daysAgo(70), updatedAt: t },
+      { id: "s3", workerId: "w2", title: "Instalación de iluminación LED", category: "Electricidad", description: "Colocación de artefactos y luminarias LED, incluye materiales.", price: 4500, duration: "2-4 horas", schedule: "Lun a Vie 9-19hs", withUrgency: false, complexity: "basica", warrantyDays: 60, images: [photo("lightbulb,led", 34)], active: true, views: 62, createdAt: daysAgo(50), updatedAt: t },
+      { id: "s4", workerId: "w2", title: "Reparación de tablero eléctrico", category: "Electricidad", description: "Diagnóstico y reparación de tableros, disyuntores y térmicas.", price: 6000, duration: "1-3 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: true, complexity: "compleja", warrantyDays: 90, images: [photo("electrical,panel", 35)], active: true, views: 40, createdAt: daysAgo(40), updatedAt: t },
+      { id: "s5", workerId: "w3", title: "Apertura de puertas 24hs", category: "Cerrajería", description: "Apertura sin daño y cambio de cerradura en el acto.", price: 5000, duration: "30-60 min", schedule: "24 horas", withUrgency: true, complexity: "basica", warrantyDays: 30, images: [photo("lock,key", 36)], active: true, views: 210, createdAt: daysAgo(30), updatedAt: t },
+      { id: "s6", workerId: "w4", title: "Pintura de interiores", category: "Pintura", description: "Interiores completos, incluye masillado y dos manos.", price: 12000, duration: "2-3 días", schedule: "Lun a Vie 9-18hs", withUrgency: false, complexity: "intermedia", warrantyDays: 90, images: [photo("painting,wall", 37)], active: true, views: 55, createdAt: daysAgo(25), updatedAt: t },
     ];
 
     this.offers = [
-      { id: "o1", authorId: "u1", title: "Reparación de pérdida de agua", description: "Tengo una pérdida de agua debajo de la pileta de la cocina que necesita atención.", category: "Plomería", budget: 5000, urgency: "en_el_dia", location: "Palermo, CABA", geo: { lat: -34.5885, lng: -58.4105 }, images: [photo("water,leak", 41), photo("sink,pipe", 42)], emergency: false, status: "abierta", createdAt: daysAgo(2), updatedAt: t },
-      { id: "o2", authorId: "u2", title: "Instalación de tomacorrientes", description: "Necesito instalar 3 tomacorrientes nuevos en la cocina.", category: "Electricidad", budget: 3000, urgency: "programada", scheduledDate: daysAgo(-3), location: "Belgrano, CABA", images: [photo("power,outlet", 43)], emergency: false, status: "abierta", createdAt: daysAgo(1), updatedAt: t },
-      { id: "o3", authorId: "u3", title: "Urgente: se cortó la luz en la cocina", description: "Saltó el tablero y no vuelve la luz en el sector de cocina del local.", category: "Electricidad", budget: 8000, urgency: "inmediata", location: "San Telmo, CABA", geo: { lat: -34.6208, lng: -58.3735 }, images: [photo("fusebox,electrical", 44), photo("kitchen,dark", 45)], emergency: true, status: "abierta", createdAt: daysAgo(0), updatedAt: t },
+      { id: "o1", authorId: "u1", title: "Reparación de pérdida de agua", description: "Tengo una pérdida de agua debajo de la pileta de la cocina que necesita atención.", category: "Plomería", budget: 5000, urgency: "en_el_dia", location: "Palermo, CABA", geo: { lat: -34.5885, lng: -58.4105 }, images: [photo("water,leak", 41), photo("sink,pipe", 42)], emergency: false, status: "abierta", radiusKm: 3, firstProposalAt: daysAgo(1), createdAt: daysAgo(2), updatedAt: t },
+      { id: "o2", authorId: "u2", title: "Instalación de tomacorrientes", description: "Necesito instalar 3 tomacorrientes nuevos en la cocina.", category: "Electricidad", budget: 3000, urgency: "programada", scheduledDate: daysAgo(-3), location: "Belgrano, CABA", geo: { lat: -34.5627, lng: -58.4583 }, images: [photo("power,outlet", 43)], emergency: false, status: "abierta", radiusKm: 3, firstProposalAt: daysAgo(0), createdAt: daysAgo(1), updatedAt: t },
+      { id: "o3", authorId: "u3", title: "Urgente: se cortó la luz en la cocina", description: "Saltó el tablero y no vuelve la luz en el sector de cocina del local.", category: "Electricidad", budget: 8000, urgency: "inmediata", location: "San Telmo, CABA", geo: { lat: -34.6208, lng: -58.3735 }, images: [photo("fusebox,electrical", 44), photo("kitchen,dark", 45)], emergency: true, status: "abierta", radiusKm: 6, responseDeadline: new Date(Date.now() + 9 * 60000).toISOString(), escalations: [minsAgo(6)], notifiedWorkerIds: ["w2"], createdAt: minsAgo(12), updatedAt: t },
+      { id: "o4", authorId: "u4", title: "Bomba de agua con pérdida en la terraza", description: "La bomba de la Torre Nazca pierde agua. Necesito revisión y presupuesto para el consorcio.", category: "Plomería", budget: 15000, urgency: "en_el_dia", location: "Av. Nazca 2200", geo: { lat: -34.6060, lng: -58.4880 }, images: [photo("water,pump", 46)], emergency: false, status: "abierta", propertyId: "prop3", radiusKm: 6, createdAt: daysAgo(0), updatedAt: t },
     ];
 
     this.proposals = [
-      { id: "p1", offerId: "o1", workerId: "w1", message: "Hola! Tengo disponibilidad hoy mismo. 10 años de experiencia, trabajo garantizado.", price: 4500, availability: "Hoy 15-18hs", status: "enviada", createdAt: daysAgo(1) },
+      { id: "p1", offerId: "o1", workerId: "w1", message: "Hola! Tengo disponibilidad hoy mismo. 10 años de experiencia, trabajo garantizado.", price: 4500, availability: "Hoy 15-18hs", etaMinutes: 40, status: "enviada", createdAt: daysAgo(1) },
       { id: "p2", offerId: "o2", workerId: "w2", message: "Soy electricista matriculada, puedo hacerlo el día que agendes. Presupuesto cerrado.", price: 2800, availability: "A coordinar", status: "enviada", createdAt: daysAgo(0) },
+      { id: "p3", offerId: "o4", workerId: "w1", message: "Trabajo con consorcios. Puedo pasar a revisar la bomba y dejar presupuesto formal.", price: 14000, availability: "Mañana 9-12hs", status: "enviada", createdAt: daysAgo(0) },
     ];
 
-    // Un trabajo ya completado con reseñas (historial), para dar vida a la app.
+    // Historial con reseñas + un trabajo activo + uno EN CAMINO para ver el
+    // seguimiento en vivo desde el primer arranque.
     this.jobs = [
-      { id: "j1", offerId: "o-hist1", proposalId: "p-hist1", clientId: "u1", workerId: "w1", category: "Plomería", title: "Destape de cañería", amount: 6000, scheduledAt: daysAgo(20), insurance: true, insuranceCost: 800, status: "completado", createdAt: daysAgo(22), completedAt: daysAgo(20), reviewedByClient: true, reviewedByWorker: true },
-      { id: "j2", offerId: "o-hist2", proposalId: "p-hist2", clientId: "u3", workerId: "w2", category: "Electricidad", title: "Revisión de instalación del local", amount: 12000, scheduledAt: daysAgo(10), insurance: false, status: "completado", createdAt: daysAgo(12), completedAt: daysAgo(10), reviewedByClient: true, reviewedByWorker: false },
-      { id: "j3", offerId: "o-hist3", proposalId: "p-hist3", clientId: "u2", workerId: "w1", category: "Plomería", title: "Cambio de flexibles y canilla", amount: 4500, scheduledAt: daysAgo(45), insurance: false, status: "completado", createdAt: daysAgo(47), completedAt: daysAgo(45), reviewedByClient: true, reviewedByWorker: true },
-      { id: "j4", offerId: "o-hist4", proposalId: "p-hist4", clientId: "u1", workerId: "w1", category: "Gas", title: "Detección de pérdida de gas", amount: 7000, scheduledAt: daysAgo(8), insurance: true, insuranceCost: 800, status: "completado", createdAt: daysAgo(9), completedAt: daysAgo(8), reviewedByClient: true, reviewedByWorker: false },
-      { id: "j5", offerId: "o-hist5", proposalId: "p-hist5", clientId: "u2", workerId: "w3", category: "Cerrajería", title: "Cambio de cerradura de seguridad", amount: 5000, scheduledAt: daysAgo(6), insurance: false, status: "completado", createdAt: daysAgo(7), completedAt: daysAgo(6), reviewedByClient: true, reviewedByWorker: false },
-      // Trabajo activo (en curso) para poblar "Mis acuerdos / Agenda".
+      { id: "j1", offerId: "o-hist1", proposalId: "p-hist1", clientId: "u1", workerId: "w1", category: "Plomería", title: "Destape de cañería", amount: 6000, scheduledAt: daysAgo(20), insurance: true, insuranceCost: 800, insurancePlanId: "basico", status: "completado", warrantyDays: 180, warrantyUntil: daysAgo(-160), resultImages: [photo("pipe,repair", 51)], createdAt: daysAgo(22), completedAt: daysAgo(20), reviewedByClient: true, reviewedByWorker: true },
+      { id: "j2", offerId: "o-hist2", proposalId: "p-hist2", clientId: "u3", workerId: "w2", category: "Electricidad", title: "Revisión de instalación del local", amount: 12000, scheduledAt: daysAgo(10), insurance: false, status: "completado", warrantyDays: 90, warrantyUntil: daysAgo(-80), resultImages: [photo("electrical,wiring", 52)], createdAt: daysAgo(12), completedAt: daysAgo(10), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j3", offerId: "o-hist3", proposalId: "p-hist3", clientId: "u2", workerId: "w1", category: "Plomería", title: "Cambio de flexibles y canilla", amount: 4500, scheduledAt: daysAgo(45), insurance: false, status: "completado", warrantyDays: 180, warrantyUntil: daysAgo(-135), createdAt: daysAgo(47), completedAt: daysAgo(45), reviewedByClient: true, reviewedByWorker: true },
+      { id: "j4", offerId: "o-hist4", proposalId: "p-hist4", clientId: "u1", workerId: "w1", category: "Gas", title: "Detección de pérdida de gas", amount: 7000, scheduledAt: daysAgo(8), insurance: true, insuranceCost: 800, insurancePlanId: "basico", status: "completado", warrantyDays: 90, warrantyUntil: daysAgo(-82), resultImages: [photo("gas,meter", 53)], createdAt: daysAgo(9), completedAt: daysAgo(8), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j5", offerId: "o-hist5", proposalId: "p-hist5", clientId: "u2", workerId: "w3", category: "Cerrajería", title: "Cambio de cerradura de seguridad", amount: 5000, scheduledAt: daysAgo(6), insurance: false, status: "completado", warrantyDays: 30, warrantyUntil: daysAgo(-24), createdAt: daysAgo(7), completedAt: daysAgo(6), reviewedByClient: true, reviewedByWorker: false },
       { id: "j6", offerId: "o-hist6", proposalId: "p-hist6", clientId: "u1", workerId: "w2", category: "Electricidad", title: "Instalación de luminarias LED", amount: 4500, scheduledAt: daysAgo(-2), insurance: false, status: "agendado", createdAt: daysAgo(1), reviewedByClient: false, reviewedByWorker: false },
+      // En camino: salió hace 3 minutos con un ETA de 15 → se ve avanzando.
+      { id: "j7", offerId: "o-hist7", proposalId: "p-hist7", clientId: "u3", workerId: "w3", category: "Cerrajería", title: "Cambio de cerradura del local", amount: 5500, scheduledAt: t, insurance: true, insuranceCost: 800, insurancePlanId: "basico", status: "en_camino", etaMinutes: 15, departedAt: minsAgo(3), originGeo: { lat: -34.6100, lng: -58.4200 }, workerGeo: { lat: -34.6100, lng: -58.4200 }, arrivalCode: "4271", trackingToken: "trk-j7-demo", createdAt: minsAgo(45), reviewedByClient: false, reviewedByWorker: false },
+      // Mantenimiento recurrente del consorcio, ya completado una vez.
+      { id: "j8", offerId: "o-hist8", proposalId: "p-hist8", clientId: "u4", workerId: "w4", category: "Mantenimiento", title: "Mantenimiento mensual — Rivadavia 5400", amount: 18000, scheduledAt: daysAgo(15), insurance: false, status: "completado", propertyId: "prop1", warrantyDays: 30, createdAt: daysAgo(17), completedAt: daysAgo(15), reviewedByClient: true, reviewedByWorker: false },
     ];
 
     this.payments = [
-      { id: "pay-j1", jobId: "j1", clientId: "u1", workerId: "w1", gross: 6000, commission: 900, insuranceCost: 800, total: 7700, net: 6000, method: "mercadopago", status: "liberado", createdAt: daysAgo(22), releasedAt: daysAgo(20) },
-      { id: "pay-j2", jobId: "j2", clientId: "u3", workerId: "w2", gross: 12000, commission: 1800, insuranceCost: 0, total: 13800, net: 12000, method: "mercadopago", status: "liberado", createdAt: daysAgo(12), releasedAt: daysAgo(10) },
+      { id: "pay-j1", jobId: "j1", clientId: "u1", workerId: "w1", gross: 6000, commission: 900, insuranceCost: 800, surcharge: 0, total: 7700, net: 6000, method: "mercadopago", status: "liberado", createdAt: daysAgo(22), releasedAt: daysAgo(20) },
+      { id: "pay-j2", jobId: "j2", clientId: "u3", workerId: "w2", gross: 12000, commission: 1800, insuranceCost: 0, surcharge: 0, total: 13800, net: 12000, method: "mercadopago", status: "liberado", createdAt: daysAgo(12), releasedAt: daysAgo(10) },
+      { id: "pay-j8", jobId: "j8", clientId: "u4", workerId: "w4", gross: 18000, commission: 2700, insuranceCost: 0, surcharge: 0, total: 20700, net: 18000, method: "transferencia", status: "liberado", createdAt: daysAgo(17), releasedAt: daysAgo(15) },
+      { id: "pay-j7", jobId: "j7", clientId: "u3", workerId: "w3", gross: 5500, commission: 825, insuranceCost: 800, surcharge: 0, total: 7125, net: 5500, method: "mercadopago", status: "retenido", createdAt: minsAgo(44) },
     ];
 
     this.reviews = [
-      { id: "r1", jobId: "j1", authorId: "u1", targetId: "w1", stars: 5, comment: "Excelente trabajo, muy rápido y prolijo. Lo recomiendo.", createdAt: daysAgo(20) },
-      { id: "r2", jobId: "j1", authorId: "w1", targetId: "u1", stars: 5, comment: "Clienta muy amable, todo claro. Gracias!", createdAt: daysAgo(20) },
-      { id: "r3", jobId: "j2", authorId: "u3", targetId: "w2", stars: 5, comment: "Resolvió todo en el día, super profesional.", createdAt: daysAgo(10) },
-      { id: "r4", jobId: "j3", authorId: "u2", targetId: "w1", stars: 5, comment: "Puntual y muy prolijo. Dejó todo funcionando perfecto.", createdAt: daysAgo(45) },
-      { id: "r5", jobId: "j4", authorId: "u1", targetId: "w1", stars: 4, comment: "Muy buen trabajo, detectó la pérdida enseguida.", createdAt: daysAgo(8) },
-      { id: "r6", jobId: "j5", authorId: "u2", targetId: "w3", stars: 5, comment: "Vino rápido y cambió la cerradura sin problemas.", createdAt: daysAgo(6) },
+      { id: "r1", jobId: "j1", authorId: "u1", targetId: "w1", stars: 5, comment: "Excelente trabajo, muy rápido y prolijo. Lo recomiendo.", verified: true, reply: { text: "Gracias María! Cualquier cosa me escribís.", createdAt: daysAgo(19) }, createdAt: daysAgo(20) },
+      { id: "r2", jobId: "j1", authorId: "w1", targetId: "u1", stars: 5, comment: "Clienta muy amable, todo claro. Gracias!", verified: true, createdAt: daysAgo(20) },
+      { id: "r3", jobId: "j2", authorId: "u3", targetId: "w2", stars: 5, comment: "Resolvió todo en el día, super profesional.", verified: true, createdAt: daysAgo(10) },
+      { id: "r4", jobId: "j3", authorId: "u2", targetId: "w1", stars: 5, comment: "Puntual y muy prolijo. Dejó todo funcionando perfecto.", verified: true, createdAt: daysAgo(45) },
+      { id: "r5", jobId: "j4", authorId: "u1", targetId: "w1", stars: 4, comment: "Muy buen trabajo, detectó la pérdida enseguida.", verified: true, createdAt: daysAgo(8) },
+      { id: "r6", jobId: "j5", authorId: "u2", targetId: "w3", stars: 5, comment: "Vino rápido y cambió la cerradura sin problemas.", verified: true, createdAt: daysAgo(6) },
+      { id: "r7", jobId: "j8", authorId: "u4", targetId: "w4", stars: 4, comment: "Cumplió con el mantenimiento del edificio sin observaciones.", verified: true, createdAt: daysAgo(15) },
     ];
 
-    this.favorites = [{ id: "f1", clientId: "u1", workerId: "w1", createdAt: daysAgo(20) }];
+    this.favorites = [
+      { id: "f1", clientId: "u1", workerId: "w1", createdAt: daysAgo(20) },
+      { id: "f2", clientId: "u4", workerId: "w4", createdAt: daysAgo(15) },
+    ];
 
     this.payouts = [
-      { id: "pay1", workerId: "w1", amount: 6000, status: "liquidado", createdAt: daysAgo(20), paidAt: daysAgo(19) },
+      { id: "pay1", workerId: "w1", amount: 6000, status: "liquidado", method: "mercadopago", createdAt: daysAgo(20), paidAt: daysAgo(19) },
       { id: "pay2", workerId: "w2", amount: 12000, status: "pendiente", createdAt: daysAgo(10) },
+      { id: "pay3", workerId: "w4", amount: 18000, status: "liquidado", method: "transferencia", createdAt: daysAgo(15), paidAt: daysAgo(14) },
+    ];
+
+    this.recurringPlans = [
+      { id: "rp1", clientId: "u4", workerId: "w4", propertyId: "prop1", category: "Mantenimiento", title: "Mantenimiento mensual — Rivadavia 5400", description: "Revisión general de plomería, electricidad y pintura de palier.", budget: 18000, frequency: "mensual", nextDate: new Date(Date.now() + 15 * 86400000).toISOString(), location: "Av. Rivadavia 5400", geo: { lat: -34.6180, lng: -58.4420 }, active: true, createdAt: daysAgo(60), lastGeneratedAt: daysAgo(17) },
+      { id: "rp2", clientId: "u3", workerId: "w2", category: "Electricidad", title: "Revisión eléctrica trimestral del local", budget: 12000, frequency: "trimestral", nextDate: new Date(Date.now() + 40 * 86400000).toISOString(), location: "Defensa 1200", geo: { lat: -34.6208, lng: -58.3735 }, active: true, createdAt: daysAgo(100) },
+    ];
+
+    this.npsResponses = [
+      { id: "nps1", userId: "u1", jobId: "j1", score: 10, comment: "Rapidísimo y sin sorpresas en el precio.", createdAt: daysAgo(20) },
+      { id: "nps2", userId: "u3", jobId: "j2", score: 9, createdAt: daysAgo(10) },
+      { id: "nps3", userId: "u2", jobId: "j5", score: 8, createdAt: daysAgo(6) },
+      { id: "nps4", userId: "u1", jobId: "j4", score: 9, createdAt: daysAgo(8) },
+      { id: "nps5", userId: "u4", jobId: "j8", score: 6, comment: "Bien, pero tardaron en confirmar la visita.", createdAt: daysAgo(15) },
     ];
 
     this.chats = [
       { id: "c1", participantIds: ["u1", "w1"], lastMessageAt: daysAgo(1), lastMessage: "Perfecto, nos vemos hoy a las 15!" },
       { id: "c2", participantIds: ["u3", "w2"], lastMessageAt: daysAgo(10), lastMessage: "Gracias por todo!" },
+      { id: "c3", participantIds: ["u4", "w4"], lastMessageAt: daysAgo(15), lastMessage: "Listo el mantenimiento del mes." },
     ];
     this.messages = [
       { id: "m1", chatId: "c1", authorId: "u1", text: "Hola Juan! Vi tu propuesta y me interesa.", ts: daysAgo(1), status: "read" },
       { id: "m2", chatId: "c1", authorId: "w1", text: "Hola María! Genial, puedo pasar hoy a las 15hs.", ts: daysAgo(1), status: "read" },
       { id: "m3", chatId: "c1", authorId: "u1", text: "Perfecto, nos vemos hoy a las 15!", ts: daysAgo(1), status: "sent" },
       { id: "m4", chatId: "c2", authorId: "u3", text: "Gracias por todo!", ts: daysAgo(10), status: "read" },
+      { id: "m5", chatId: "c3", authorId: "w4", text: "Listo el mantenimiento del mes.", ts: daysAgo(15), status: "read" },
     ];
 
     this.notifications = [
       { id: "n1", userId: "u1", type: "oferta", title: "Nueva propuesta recibida", body: "Juan Pérez envió una propuesta para tu solicitud.", read: false, link: "/u/requests/o1", createdAt: daysAgo(1) },
       { id: "n2", userId: "w1", type: "sistema", title: "¡Subiste a nivel Gold!", body: "Alcanzaste 30 trabajos completados. Ahora pagás menor comisión.", read: false, link: "/w/stats", createdAt: daysAgo(5) },
       { id: "n3", userId: "w2", type: "pago", title: "Pago disponible", body: "Tenés $12.000 disponibles para retirar.", read: true, link: "/w/cobros", createdAt: daysAgo(10) },
+      { id: "n4", userId: "u3", type: "seguimiento", title: "Diego está en camino", body: "Llega en unos 15 minutos. Código de llegada: 4271.", read: false, link: "/u/jobs/j7", createdAt: minsAgo(3) },
+      { id: "n5", userId: "w2", type: "emergencia", title: "🚨 Emergencia cerca tuyo", body: "Bodegón La Esquina necesita un Electricidad con urgencia en San Telmo.", read: false, link: "/w/jobs/o3", createdAt: minsAgo(12) },
     ];
 
     this.saveToStorage();
@@ -256,6 +350,7 @@ class DataStore {
     };
     if (data.role === "user") {
       user.clientType = data.clientType || "hogar";
+      user.clientPlan = "free";
       user.rating = 0;
       user.reviewCount = 0;
     } else {
@@ -272,6 +367,11 @@ class DataStore {
       user.jobsDone = 0;
       user.premium = false;
       user.available = true;
+      user.workSchedule = { days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00" };
+      user.onCallWeekends = false;
+      user.invitesReceived = 0;
+      user.invitesAnswered = 0;
+      user.responseMinutesTotal = 0;
     }
     this.users.push(user);
     this.saveToStorage();
@@ -334,8 +434,77 @@ class DataStore {
     return this.sanitizeUser(this.users[i]);
   }
 
+  // ─────────────────────── Disponibilidad ───────────────────────
+  // Dolor #1 de la investigación (4 de 8 entrevistas): saber quién puede ir AHORA.
+  getAvailabilityStatus(workerId: string): AvailabilityStatus {
+    const w = this.users.find((u) => u.id === workerId);
+    if (!w) return "fuera_de_horario";
+    // Si está en un trabajo activo, está ocupado.
+    const busy = this.jobs.some(
+      (j) => j.workerId === workerId && (j.status === "en_camino" || j.status === "en_progreso"),
+    );
+    if (busy) return "ocupado";
+    if (!w.available) return "fuera_de_horario";
+    return this.isWithinSchedule(w) ? "disponible" : "fuera_de_horario";
+  }
+
+  private isWithinSchedule(w: User, when = new Date()): boolean {
+    const day = when.getDay();
+    const isWeekend = day === 0 || day === 6;
+    if (isWeekend && w.onCallWeekends) return true;
+    const s = w.workSchedule;
+    if (!s) return true; // sin horario declarado: se asume disponible
+    if (!s.days.includes(day)) return false;
+    const mins = when.getHours() * 60 + when.getMinutes();
+    const [fh, fm] = s.from.split(":").map(Number);
+    const [th, tm] = s.to.split(":").map(Number);
+    return mins >= fh * 60 + fm && mins <= th * 60 + tm;
+  }
+
+  // "X profesionales disponibles ahora en tu zona".
+  getAvailableNowCount(filters: { category?: string; zone?: string } = {}): number {
+    return this.users.filter((u) => {
+      if (u.role !== "worker") return false;
+      if (this.getAvailabilityStatus(u.id) !== "disponible") return false;
+      if (filters.category && !(u.trades?.includes(filters.category) || u.trade === filters.category)) return false;
+      if (filters.zone) {
+        const z = filters.zone.toLowerCase().split(",")[0].trim();
+        if (!(u.coverageZone || u.zone || "").toLowerCase().includes(z)) return false;
+      }
+      return true;
+    }).length;
+  }
+
+  // Trabajadores de guardia (fin de semana / feriados) — pedido de la entrevista 8.
+  getOnCallWorkers(category?: string): PublicUser[] {
+    return this.users
+      .filter((u) => u.role === "worker" && u.onCallWeekends)
+      .filter((u) => !category || u.trades?.includes(category) || u.trade === category)
+      .map((u) => this.sanitizeUser(u));
+  }
+
+  setAvailability(available: boolean) {
+    const me = this.requireAuth();
+    if (me.role !== "worker") throw new Error("Solo los trabajadores");
+    return this.updateUser(me.id, { available });
+  }
+
   // ─────────────────────── Trabajadores / búsqueda ───────────────────────
-  getWorkers(filters: { category?: string; zone?: string; q?: string; onlyAvailable?: boolean } = {}): PublicUser[] {
+  getWorkers(
+    filters: {
+      category?: string;
+      zone?: string;
+      q?: string;
+      onlyAvailable?: boolean;
+      onlyAvailableNow?: boolean;
+      onlyLicensed?: boolean;
+      onlyVerified?: boolean;
+      complexity?: Complexity;
+      minRating?: number;
+      maxPrice?: number;
+      onCallOnly?: boolean;
+    } = {},
+  ): PublicUser[] {
     let list = this.users.filter((u) => u.role === "worker");
     if (filters.category) list = list.filter((w) => w.trades?.includes(filters.category!) || w.trade === filters.category);
     if (filters.zone) {
@@ -347,6 +516,19 @@ class DataStore {
       list = list.filter((w) => w.name.toLowerCase().includes(q) || (w.trade || "").toLowerCase().includes(q) || (w.bio || "").toLowerCase().includes(q));
     }
     if (filters.onlyAvailable) list = list.filter((w) => w.available);
+    if (filters.onlyAvailableNow) list = list.filter((w) => this.getAvailabilityStatus(w.id) === "disponible");
+    // Filtro por matrícula: pedido en las entrevistas 3 y 4.
+    if (filters.onlyLicensed) list = list.filter((w) => w.verification?.license);
+    if (filters.onlyVerified) list = list.filter((w) => w.verified);
+    if (filters.onCallOnly) list = list.filter((w) => w.onCallWeekends);
+    if (filters.minRating) list = list.filter((w) => (w.rating || 0) >= filters.minRating!);
+    if (filters.maxPrice) list = list.filter((w) => (w.hourlyRate || 0) <= filters.maxPrice!);
+    // Filtro por complejidad: tiene al menos un servicio activo de ese nivel.
+    if (filters.complexity) {
+      list = list.filter((w) =>
+        this.services.some((s) => s.workerId === w.id && s.active && s.complexity === filters.complexity),
+      );
+    }
     return list
       .sort((a, b) => (b.premium ? 1 : 0) - (a.premium ? 1 : 0) || (b.rating || 0) - (a.rating || 0))
       .map((u) => this.sanitizeUser(u));
@@ -378,13 +560,68 @@ class DataStore {
       .sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
   }
 
+  // ─────────────────────── Propiedades (consorcios) ───────────────────────
+  getProperties(ownerId: string): Property[] {
+    return this.properties
+      .filter((p) => p.ownerId === ownerId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  getProperty(id: string): Property | undefined {
+    return this.properties.find((p) => p.id === id);
+  }
+
+  createProperty(data: Omit<Property, "id" | "ownerId" | "createdAt">) {
+    const me = this.requireAuth();
+    if (me.role !== "user") throw new Error("Solo los clientes pueden administrar propiedades");
+    const prop: Property = { ...data, id: `prop${Date.now()}`, ownerId: me.id, createdAt: new Date().toISOString() };
+    this.properties.push(prop);
+    this.saveToStorage();
+    return prop;
+  }
+
+  updateProperty(id: string, patch: Partial<Property>) {
+    const me = this.requireAuth();
+    const i = this.properties.findIndex((p) => p.id === id);
+    if (i === -1) throw new Error("Propiedad no encontrada");
+    if (this.properties[i].ownerId !== me.id) throw new Error("No autorizado");
+    this.properties[i] = { ...this.properties[i], ...patch };
+    this.saveToStorage();
+    return this.properties[i];
+  }
+
+  deleteProperty(id: string) {
+    const me = this.requireAuth();
+    const p = this.properties.find((x) => x.id === id);
+    if (!p) throw new Error("Propiedad no encontrada");
+    if (p.ownerId !== me.id) throw new Error("No autorizado");
+    this.properties = this.properties.filter((x) => x.id !== id);
+    this.saveToStorage();
+  }
+
+  // Resumen por propiedad: trabajos y gasto acumulado.
+  getPropertyStats(propertyId: string) {
+    const jobs = this.jobs.filter((j) => j.propertyId === propertyId);
+    const spent = jobs.reduce((s, j) => {
+      const p = this.payments.find((x) => x.jobId === j.id);
+      return s + (p?.total || 0);
+    }, 0);
+    return {
+      jobs: jobs.length,
+      active: jobs.filter((j) => j.status !== "completado" && j.status !== "cancelado").length,
+      spent,
+      lastJobAt: jobs.map((j) => j.createdAt).sort().reverse()[0],
+    };
+  }
+
   // ─────────────────────────── Offers (solicitudes) ───────────────────────────
-  getOffers(filters: { status?: OfferStatus; category?: string; q?: string; authorId?: string; urgency?: Urgency; emergency?: boolean } = {}) {
+  getOffers(filters: { status?: OfferStatus; category?: string; q?: string; authorId?: string; urgency?: Urgency; emergency?: boolean; propertyId?: string } = {}) {
     let list = [...this.offers];
     if (filters.status) list = list.filter((o) => o.status === filters.status);
     if (filters.category) list = list.filter((o) => o.category === filters.category);
     if (filters.authorId) list = list.filter((o) => o.authorId === filters.authorId);
     if (filters.urgency) list = list.filter((o) => o.urgency === filters.urgency);
+    if (filters.propertyId) list = list.filter((o) => o.propertyId === filters.propertyId);
     if (typeof filters.emergency === "boolean") list = list.filter((o) => !!o.emergency === filters.emergency);
     if (filters.q) {
       const q = filters.q.toLowerCase();
@@ -401,7 +638,14 @@ class DataStore {
     if (this.requireAuth().role !== "user") throw new Error("Solo los usuarios pueden crear solicitudes");
     const now = new Date().toISOString();
     const offer: Offer = { ...data, id: `o${Date.now()}`, createdAt: now, updatedAt: now };
+    // Urgencias: ventana de respuesta + primer radio de búsqueda.
+    if (offer.urgency === "inmediata") {
+      offer.responseDeadline = new Date(Date.now() + RESPONSE_WINDOW_MINUTES * 60000).toISOString();
+      offer.radiusKm = offer.radiusKm ?? ESCALATION_RADIUS_STEPS_KM[0];
+      offer.escalations = [];
+    }
     this.offers.push(offer);
+    this.notifyNearbyWorkers(offer);
     this.saveToStorage();
     return offer;
   }
@@ -416,8 +660,93 @@ class DataStore {
     return this.offers[i];
   }
 
-  // Botón de emergencia (SOS) — cliente / PyME.
-  createEmergency(data: { category: string; description?: string; location: string; geo?: { lat: number; lng: number }; budget?: number }) {
+  // Avisa a los trabajadores dentro del radio y cuenta la invitación (para
+  // la "tasa de respuesta" del KPI 3.5).
+  private notifyNearbyWorkers(offer: Offer): number {
+    const radius = offer.radiusKm ?? 6;
+    const already = new Set(offer.notifiedWorkerIds || []);
+    const candidates = this.getNearbyWorkers(offer.geo, { category: offer.category, onlyAvailable: true })
+      .filter(({ worker, distance }) => !already.has(worker.id) && (distance === null || distance <= radius))
+      .slice(0, 8);
+
+    candidates.forEach(({ worker }) => {
+      already.add(worker.id);
+      const wi = this.users.findIndex((u) => u.id === worker.id);
+      if (wi !== -1) this.users[wi].invitesReceived = (this.users[wi].invitesReceived || 0) + 1;
+      const isUrgent = offer.urgency === "inmediata";
+      this.pushNotification(
+        worker.id,
+        isUrgent ? "emergencia" : "oferta",
+        isUrgent ? "🚨 Urgencia cerca tuyo" : "Nueva solicitud en tu zona",
+        `${offer.title} — ${offer.location}. Presupuesto estimado $${offer.budget.toLocaleString()}.`,
+        `/w/jobs/${offer.id}`,
+      );
+    });
+    offer.notifiedWorkerIds = [...already];
+    return candidates.length;
+  }
+
+  // Escalado: si nadie respondió en la ventana, se amplía el radio.
+  escalateOffer(id: string) {
+    const offer = this.offers.find((o) => o.id === id);
+    if (!offer) throw new Error("Solicitud no encontrada");
+    if (offer.status !== "abierta") throw new Error("La solicitud ya no está abierta");
+    const current = offer.radiusKm ?? ESCALATION_RADIUS_STEPS_KM[0];
+    const next = ESCALATION_RADIUS_STEPS_KM.find((r) => r > current);
+    if (!next) throw new Error("Ya se amplió al radio máximo");
+    offer.radiusKm = next;
+    offer.escalations = [...(offer.escalations || []), new Date().toISOString()];
+    offer.responseDeadline = new Date(Date.now() + RESPONSE_WINDOW_MINUTES * 60000).toISOString();
+    offer.updatedAt = new Date().toISOString();
+    const notified = this.notifyNearbyWorkers(offer);
+    this.pushNotification(offer.authorId, "sistema", "Ampliamos la búsqueda", `Sumamos profesionales hasta ${next} km. Avisamos a ${notified} más.`, `/u/requests/${offer.id}`);
+    this.saveToStorage();
+    return { offer, notified, radiusKm: next };
+  }
+
+  // Minutos restantes de la ventana de respuesta (null si no aplica).
+  getResponseWindowMinutes(offerId: string): number | null {
+    const offer = this.offers.find((o) => o.id === offerId);
+    if (!offer?.responseDeadline || offer.status !== "abierta") return null;
+    const left = (new Date(offer.responseDeadline).getTime() - Date.now()) / 60000;
+    return Math.max(0, Math.round(left));
+  }
+
+  // Asignación automática por cercanía (diferencial 2.11) — para urgencias.
+  autoAssignNearest(offerId: string) {
+    const me = this.requireAuth();
+    const offer = this.offers.find((o) => o.id === offerId);
+    if (!offer) throw new Error("Solicitud no encontrada");
+    if (offer.authorId !== me.id) throw new Error("No autorizado");
+    if (offer.status !== "abierta") throw new Error("La solicitud ya fue asignada");
+
+    const candidate = this.getNearbyWorkers(offer.geo, { category: offer.category, onlyAvailable: true })
+      .find(({ worker }) => this.getAvailabilityStatus(worker.id) === "disponible");
+    if (!candidate) throw new Error("No hay profesionales disponibles ahora en tu zona");
+
+    const distance = candidate.distance ?? 5;
+    const etaMinutes = Math.max(10, Math.round(distance * 4) + 10);
+    const proposal: Proposal = {
+      id: `p${Date.now()}`,
+      offerId: offer.id,
+      workerId: candidate.worker.id,
+      message: "Asignación automática por cercanía (urgencia).",
+      price: offer.budget,
+      availability: "Ahora",
+      etaMinutes,
+      status: "enviada",
+      createdAt: new Date().toISOString(),
+    };
+    this.proposals.push(proposal);
+    if (!offer.firstProposalAt) offer.firstProposalAt = proposal.createdAt;
+    const job = this.acceptProposal(proposal.id, { autoAssigned: true });
+    this.pushNotification(candidate.worker.id, "emergencia", "Te asignamos una urgencia", `${me.name} necesita ${offer.category} en ${offer.location}. ETA sugerido: ${etaMinutes} min.`, `/w/agreements/${job.id}`);
+    this.saveToStorage();
+    return { job, worker: candidate.worker, distance, etaMinutes };
+  }
+
+  // Botón de emergencia (SOS) — cliente / PyME / administrador.
+  createEmergency(data: { category: string; description?: string; location: string; geo?: { lat: number; lng: number }; budget?: number; propertyId?: string }) {
     const me = this.requireAuth();
     if (me.role !== "user") throw new Error("Solo los usuarios pueden pedir emergencias");
     const now = new Date().toISOString();
@@ -434,17 +763,17 @@ class DataStore {
       images: [],
       emergency: true,
       status: "abierta",
+      propertyId: data.propertyId,
+      responseDeadline: new Date(Date.now() + RESPONSE_WINDOW_MINUTES * 60000).toISOString(),
+      radiusKm: ESCALATION_RADIUS_STEPS_KM[0],
+      escalations: [],
       createdAt: now,
       updatedAt: now,
     };
     this.offers.push(offer);
-    // Notificar a trabajadores disponibles y cercanos de la categoría.
-    const nearby = this.getNearbyWorkers(data.geo, { category: data.category, onlyAvailable: true }).slice(0, 5);
-    nearby.forEach(({ worker }) =>
-      this.pushNotification(worker.id, "emergencia", "🚨 Emergencia cerca tuyo", `${me.name} necesita un ${data.category} con urgencia en ${data.location}.`, `/w/jobs/${offer.id}`),
-    );
+    const notified = this.notifyNearbyWorkers(offer);
     this.saveToStorage();
-    return { offer, notified: nearby.length };
+    return { offer, notified };
   }
 
   // ─────────────────────────── Proposals ───────────────────────────
@@ -463,10 +792,22 @@ class DataStore {
   createProposal(data: Omit<Proposal, "id" | "createdAt" | "status"> & { status?: ProposalStatus }) {
     const me = this.requireAuth();
     if (me.role !== "worker") throw new Error("Solo los trabajadores pueden enviar propuestas");
-    const proposal: Proposal = { ...data, status: data.status || "enviada", id: `p${Date.now()}`, createdAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const proposal: Proposal = { ...data, status: data.status || "enviada", id: `p${Date.now()}`, createdAt: now };
     this.proposals.push(proposal);
     const offer = this.offers.find((o) => o.id === data.offerId);
-    if (offer) this.pushNotification(offer.authorId, "oferta", "Nueva propuesta recibida", `${me.name} envió una propuesta ($${data.price.toLocaleString()}) para "${offer.title}".`, `/u/requests/${offer.id}`);
+    if (offer) {
+      // Time-to-match: se marca la primera propuesta recibida.
+      if (!offer.firstProposalAt) offer.firstProposalAt = now;
+      // Tasa de respuesta del trabajador (KPI 3.5).
+      const wi = this.users.findIndex((u) => u.id === me.id);
+      if (wi !== -1) {
+        this.users[wi].invitesAnswered = (this.users[wi].invitesAnswered || 0) + 1;
+        const elapsed = Math.max(1, Math.round((Date.now() - new Date(offer.createdAt).getTime()) / 60000));
+        this.users[wi].responseMinutesTotal = (this.users[wi].responseMinutesTotal || 0) + elapsed;
+      }
+      this.pushNotification(offer.authorId, "oferta", "Nueva propuesta recibida", `${me.name} envió una propuesta ($${data.price.toLocaleString()}) para "${offer.title}".`, `/u/requests/${offer.id}`);
+    }
     this.saveToStorage();
     return proposal;
   }
@@ -484,7 +825,7 @@ class DataStore {
   }
 
   // Cliente acepta una propuesta → crea un Job (agendado, sin pagar) y rechaza el resto.
-  acceptProposal(proposalId: string, opts: { scheduledAt?: string } = {}) {
+  acceptProposal(proposalId: string, opts: { scheduledAt?: string; autoAssigned?: boolean } = {}) {
     const me = this.requireAuth();
     const proposal = this.proposals.find((p) => p.id === proposalId);
     if (!proposal) throw new Error("Propuesta no encontrada");
@@ -500,6 +841,9 @@ class DataStore {
     offer.status = "asignada";
     offer.updatedAt = new Date().toISOString();
 
+    // Garantía heredada del servicio del trabajador en esa categoría, si tiene.
+    const service = this.services.find((s) => s.workerId === proposal.workerId && s.category === offer.category && s.active);
+
     const job: Job = {
       id: `j${Date.now()}`,
       offerId: offer.id,
@@ -512,19 +856,25 @@ class DataStore {
       scheduledAt: opts.scheduledAt || offer.scheduledDate,
       insurance: false,
       status: "agendado",
+      propertyId: offer.propertyId,
+      etaMinutes: proposal.etaMinutes,
+      warrantyDays: service?.warrantyDays ?? DEFAULT_WARRANTY_DAYS,
       createdAt: new Date().toISOString(),
     };
     this.jobs.push(job);
-    this.pushNotification(proposal.workerId, "reserva", "¡Propuesta aceptada!", `${me.name} aceptó tu propuesta para "${offer.title}".`, `/w/agreements/${job.id}`);
+    if (!opts.autoAssigned) {
+      this.pushNotification(proposal.workerId, "reserva", "¡Propuesta aceptada!", `${me.name} aceptó tu propuesta para "${offer.title}".`, `/w/agreements/${job.id}`);
+    }
     this.saveToStorage();
     return job;
   }
 
   // ─────────────────────────── Services ───────────────────────────
-  getServices(filters: { workerId?: string; category?: string; includeInactive?: boolean } = {}) {
+  getServices(filters: { workerId?: string; category?: string; includeInactive?: boolean; complexity?: Complexity } = {}) {
     let list = [...this.services];
     if (filters.workerId) list = list.filter((s) => s.workerId === filters.workerId);
     if (filters.category) list = list.filter((s) => s.category === filters.category);
+    if (filters.complexity) list = list.filter((s) => s.complexity === filters.complexity);
     if (!filters.includeInactive) list = list.filter((s) => s.active);
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
@@ -562,11 +912,12 @@ class DataStore {
   }
 
   // ─────────────────────────── Jobs / Acuerdos ───────────────────────────
-  getJobs(filters: { clientId?: string; workerId?: string; status?: Job["status"] } = {}) {
+  getJobs(filters: { clientId?: string; workerId?: string; status?: Job["status"]; propertyId?: string } = {}) {
     let list = [...this.jobs];
     if (filters.clientId) list = list.filter((j) => j.clientId === filters.clientId);
     if (filters.workerId) list = list.filter((j) => j.workerId === filters.workerId);
     if (filters.status) list = list.filter((j) => j.status === filters.status);
+    if (filters.propertyId) list = list.filter((j) => j.propertyId === filters.propertyId);
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
@@ -582,20 +933,283 @@ class DataStore {
     return this.jobs[i];
   }
 
+  // ──────────── Seguimiento del servicio (diferencial 2.11) ────────────
+  // El trabajador sale hacia el domicilio: arranca la trazabilidad.
+  startTrip(jobId: string, etaMinutes: number) {
+    const me = this.requireAuth();
+    const i = this.jobs.findIndex((j) => j.id === jobId);
+    if (i === -1) throw new Error("Trabajo no encontrado");
+    const job = this.jobs[i];
+    if (job.workerId !== me.id) throw new Error("Solo el profesional asignado puede iniciar el viaje");
+    if (job.status !== "agendado") throw new Error("El trabajo no está en estado agendado");
+    if (etaMinutes < 1 || etaMinutes > 480) throw new Error("El ETA tiene que estar entre 1 y 480 minutos");
+
+    const now = new Date().toISOString();
+    const client = this.users.find((u) => u.id === job.clientId);
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    this.jobs[i] = {
+      ...job,
+      status: "en_camino",
+      etaMinutes,
+      departedAt: now,
+      originGeo: me.geo,
+      workerGeo: me.geo,
+      arrivalCode: code,
+      trackingToken: `trk-${job.id}-${Math.random().toString(36).slice(2, 8)}`,
+    };
+    this.pushNotification(
+      job.clientId,
+      "seguimiento",
+      `${me.name} está en camino`,
+      `Llega en unos ${etaMinutes} minutos. Código de llegada: ${code}. Pedíselo antes de dejarlo entrar.`,
+      `/u/jobs/${job.id}`,
+    );
+    if (client) {
+      this.pushNotification(me.id, "seguimiento", "Viaje iniciado", `Vas hacia ${client.name}. Cuando llegues, marcá "Llegué".`, `/w/agreements/${job.id}`);
+    }
+    this.saveToStorage();
+    return this.jobs[i];
+  }
+
+  // Estado del trayecto DERIVADO del reloj: no hace falta ningún timer.
+  getTrackingState(jobId: string): TrackingState | null {
+    const job = this.jobs.find((j) => j.id === jobId);
+    if (!job) return null;
+    const client = this.users.find((u) => u.id === job.clientId);
+    const clientGeo = client?.geo;
+
+    if (job.status !== "en_camino") {
+      return {
+        status: job.status,
+        etaMinutes: null,
+        progress: job.arrivedAt ? 1 : 0,
+        workerGeo: job.workerGeo,
+        clientGeo,
+        distanceKm: this.distanceKm(job.workerGeo, clientGeo),
+        departedAt: job.departedAt,
+        arrivedAt: job.arrivedAt,
+        arrivalCode: job.arrivalCode,
+        arrivalConfirmed: !!job.arrivalConfirmedAt,
+      };
+    }
+
+    const eta = job.etaMinutes || 20;
+    const elapsedMin = job.departedAt ? (Date.now() - new Date(job.departedAt).getTime()) / 60000 : 0;
+    const progress = Math.max(0, Math.min(1, elapsedMin / eta));
+    const remaining = Math.max(0, Math.ceil(eta - elapsedMin));
+
+    // Interpolación lineal entre el punto de salida y el domicilio.
+    let workerGeo = job.workerGeo;
+    if (job.originGeo && clientGeo) {
+      workerGeo = {
+        lat: job.originGeo.lat + (clientGeo.lat - job.originGeo.lat) * progress,
+        lng: job.originGeo.lng + (clientGeo.lng - job.originGeo.lng) * progress,
+      };
+    }
+
+    return {
+      status: job.status,
+      etaMinutes: remaining,
+      progress,
+      workerGeo,
+      clientGeo,
+      distanceKm: this.distanceKm(workerGeo, clientGeo),
+      departedAt: job.departedAt,
+      arrivedAt: job.arrivedAt,
+      arrivalCode: job.arrivalCode,
+      arrivalConfirmed: !!job.arrivalConfirmedAt,
+    };
+  }
+
+  // El profesional marca que llegó.
+  markArrived(jobId: string) {
+    const me = this.requireAuth();
+    const i = this.jobs.findIndex((j) => j.id === jobId);
+    if (i === -1) throw new Error("Trabajo no encontrado");
+    const job = this.jobs[i];
+    if (job.workerId !== me.id) throw new Error("No autorizado");
+    if (job.status !== "en_camino") throw new Error("El trabajo no está en camino");
+    const client = this.users.find((u) => u.id === job.clientId);
+    this.jobs[i] = { ...job, arrivedAt: new Date().toISOString(), workerGeo: client?.geo || job.workerGeo };
+    this.pushNotification(job.clientId, "seguimiento", `${me.name} llegó`, `Pedile el código ${job.arrivalCode} para confirmar que es quien dice ser.`, `/u/jobs/${job.id}`);
+    this.saveToStorage();
+    return this.jobs[i];
+  }
+
+  // El cliente valida el código en la puerta → arranca el trabajo.
+  // Cierra el miedo explícito de la entrevista 3 ("dejar entrar a desconocidos").
+  confirmArrival(jobId: string, code: string) {
+    const me = this.requireAuth();
+    const i = this.jobs.findIndex((j) => j.id === jobId);
+    if (i === -1) throw new Error("Trabajo no encontrado");
+    const job = this.jobs[i];
+    if (job.clientId !== me.id) throw new Error("Solo el cliente puede confirmar la llegada");
+    if (job.status !== "en_camino") throw new Error("El trabajo no está en camino");
+    if (!job.arrivalCode) throw new Error("Este trabajo no tiene código de llegada");
+    if (code.trim() !== job.arrivalCode) throw new Error("El código no coincide. Verificá con el profesional.");
+
+    const now = new Date().toISOString();
+    this.jobs[i] = { ...job, arrivalConfirmedAt: now, startedAt: now, status: "en_progreso", arrivedAt: job.arrivedAt || now };
+    this.pushNotification(job.workerId, "seguimiento", "Llegada confirmada", `${me.name} confirmó tu identidad. Podés empezar el trabajo.`, `/w/agreements/${job.id}`);
+    this.saveToStorage();
+    return this.jobs[i];
+  }
+
+  // Ficha "quién va a ir" — se le muestra al cliente antes de abrir la puerta.
+  getArrivalCard(jobId: string): ArrivalCard | null {
+    const job = this.jobs.find((j) => j.id === jobId);
+    if (!job) return null;
+    const w = this.users.find((u) => u.id === job.workerId);
+    if (!w) return null;
+    const isClient = this.currentUser?.id === job.clientId;
+    return {
+      workerId: w.id,
+      name: w.name,
+      photo: w.photo,
+      trade: w.trade,
+      rating: w.rating || 0,
+      reviewCount: w.reviewCount || 0,
+      verification: w.verification,
+      verified: !!w.verified,
+      jobsDone: w.jobsDone || 0,
+      vehicle: w.vehicle,
+      phone: w.phone,
+      // El código solo se le muestra al cliente.
+      arrivalCode: isClient ? job.arrivalCode : undefined,
+    };
+  }
+
+  // Línea de tiempo del servicio con horarios reales (trazabilidad visual).
+  getJobTimeline(jobId: string): JobTimelineEvent[] {
+    const job = this.jobs.find((j) => j.id === jobId);
+    if (!job) return [];
+    const steps: JobTimelineEvent[] = [
+      { key: "acordado", label: "Acuerdo cerrado", at: job.createdAt, done: true },
+      { key: "agendado", label: "Agendado", at: job.scheduledAt, done: !!job.scheduledAt },
+      { key: "en_camino", label: "En camino", at: job.departedAt, done: !!job.departedAt },
+      { key: "llego", label: "Llegó al domicilio", at: job.arrivedAt, done: !!job.arrivedAt },
+      { key: "identidad", label: "Identidad confirmada", at: job.arrivalConfirmedAt, done: !!job.arrivalConfirmedAt },
+      { key: "trabajando", label: "Trabajo en curso", at: job.startedAt, done: !!job.startedAt },
+      { key: "completado", label: "Completado y validado", at: job.completedAt, done: !!job.completedAt },
+    ];
+    if (job.status === "cancelado") {
+      steps.push({ key: "cancelado", label: "Cancelado", at: undefined, done: true });
+    }
+    return steps;
+  }
+
+  // Seguimiento compartible con un contacto de confianza (entrevista 3).
+  getTrackingByToken(token: string) {
+    const job = this.jobs.find((j) => j.trackingToken === token);
+    if (!job) return null;
+    const worker = this.users.find((u) => u.id === job.workerId);
+    const client = this.users.find((u) => u.id === job.clientId);
+    const state = this.getTrackingState(job.id);
+    return {
+      jobTitle: job.title,
+      clientName: client?.name,
+      workerName: worker?.name,
+      workerPhoto: worker?.photo,
+      workerTrade: worker?.trade,
+      workerVerified: !!worker?.verified,
+      status: job.status,
+      state,
+    };
+  }
+
+  // Botón de pánico DURANTE el servicio (distinto del SOS para pedir ayuda).
+  raisePanic(jobId: string) {
+    const me = this.requireAuth();
+    const i = this.jobs.findIndex((j) => j.id === jobId);
+    if (i === -1) throw new Error("Trabajo no encontrado");
+    const job = this.jobs[i];
+    if (job.clientId !== me.id && job.workerId !== me.id) throw new Error("No autorizado");
+    this.jobs[i] = { ...job, panicAt: new Date().toISOString() };
+    this.pushNotification(me.id, "emergencia", "Alerta registrada", "Soporte de OFIX fue notificado y se va a contactar con vos. Si hay riesgo inmediato, llamá al 911.", `/u/jobs/${job.id}`);
+    this.saveToStorage();
+    return this.jobs[i];
+  }
+
+  // Reportar que la otra parte no se presentó (cita 1.2.2: "vienen y no vienen").
+  reportNoShow(jobId: string) {
+    const me = this.requireAuth();
+    const i = this.jobs.findIndex((j) => j.id === jobId);
+    if (i === -1) throw new Error("Trabajo no encontrado");
+    const job = this.jobs[i];
+    if (job.clientId !== me.id && job.workerId !== me.id) throw new Error("No autorizado");
+    if (job.status === "completado") throw new Error("El trabajo ya está completado");
+    const now = new Date().toISOString();
+    this.jobs[i] = { ...job, noShowReportedAt: now, noShowBy: me.id, status: "cancelado" };
+
+    // Se reembolsa el pago retenido y se reabre la solicitud para recontratar.
+    const payment = this.payments.find((p) => p.jobId === jobId);
+    if (payment && (payment.status === "retenido" || payment.status === "en_disputa")) payment.status = "reembolsado";
+    const offer = this.offers.find((o) => o.id === job.offerId);
+    if (offer) {
+      offer.status = "abierta";
+      offer.updatedAt = now;
+      this.proposals = this.proposals.map((p) => (p.id === job.proposalId ? { ...p, status: "rechazada" as ProposalStatus } : p));
+    }
+    const otherId = job.clientId === me.id ? job.workerId : job.clientId;
+    this.pushNotification(otherId, "sistema", "Se reportó un incumplimiento", `Se registró que no hubo presentación en "${job.title}". El pago retenido fue reembolsado.`, "");
+    this.pushNotification(me.id, "sistema", "Incumplimiento registrado", "Reabrimos tu solicitud para que puedas contratar a otro profesional.", offer ? `/u/requests/${offer.id}` : "");
+    this.saveToStorage();
+    return this.jobs[i];
+  }
+
+  // Fotos del resultado (alimentan el portfolio del trabajador).
+  addJobResultImages(jobId: string, images: string[]) {
+    const me = this.requireAuth();
+    const i = this.jobs.findIndex((j) => j.id === jobId);
+    if (i === -1) throw new Error("Trabajo no encontrado");
+    if (this.jobs[i].workerId !== me.id) throw new Error("Solo el profesional puede subir el resultado");
+    this.jobs[i] = { ...this.jobs[i], resultImages: images };
+    this.saveToStorage();
+    return this.jobs[i];
+  }
+
+  // Portfolio: galería antes/después de los trabajos completados (E2 y E5).
+  getPortfolio(workerId: string) {
+    return this.jobs
+      .filter((j) => j.workerId === workerId && j.status === "completado")
+      .map((j) => {
+        const offer = this.offers.find((o) => o.id === j.offerId);
+        return {
+          jobId: j.id,
+          title: j.title,
+          category: j.category,
+          completedAt: j.completedAt,
+          before: offer?.images || [],
+          after: j.resultImages || [],
+        };
+      })
+      .filter((p) => p.before.length > 0 || p.after.length > 0)
+      .sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
+  }
+
   // Cliente valida el trabajo → libera fondos, cierra el acuerdo y acredita al trabajador.
   completeJob(id: string) {
     const me = this.requireAuth();
     const job = this.jobs.find((j) => j.id === id);
     if (!job) throw new Error("Trabajo no encontrado");
     if (job.clientId !== me.id) throw new Error("Solo el cliente puede validar el trabajo");
+    // Un reclamo abierto congela el escrow: no se puede liberar.
+    const openDispute = this.disputes.find((d) => d.jobId === id && (d.status === "abierta" || d.status === "en_revision"));
+    if (openDispute) throw new Error("Hay un reclamo abierto sobre este trabajo. Se resuelve antes de liberar los fondos.");
+
+    const now = new Date().toISOString();
     job.status = "completado";
-    job.completedAt = new Date().toISOString();
+    job.completedAt = now;
+    // Garantía: arranca al completarse.
+    const days = job.warrantyDays ?? DEFAULT_WARRANTY_DAYS;
+    job.warrantyDays = days;
+    job.warrantyUntil = new Date(Date.now() + days * 86400000).toISOString();
 
     const payment = this.payments.find((p) => p.jobId === id);
     if (payment && payment.status === "retenido") {
       payment.status = "liberado";
-      payment.releasedAt = new Date().toISOString();
-      this.payouts.push({ id: `pay${Date.now()}`, workerId: job.workerId, amount: payment.net, status: "pendiente", createdAt: new Date().toISOString() });
+      payment.releasedAt = now;
+      this.payouts.push({ id: `pay${Date.now()}`, workerId: job.workerId, amount: payment.net, status: "pendiente", createdAt: now });
     }
 
     const proposal = this.proposals.find((p) => p.id === job.proposalId);
@@ -621,7 +1235,7 @@ class DataStore {
     if (job.status === "completado") throw new Error("El trabajo ya está completado");
     job.status = "cancelado";
     const payment = this.payments.find((p) => p.jobId === id);
-    if (payment && payment.status === "retenido") payment.status = "reembolsado";
+    if (payment && (payment.status === "retenido" || payment.status === "en_disputa")) payment.status = "reembolsado";
     const offer = this.offers.find((o) => o.id === job.offerId);
     if (offer) offer.status = "cancelada";
     this.saveToStorage();
@@ -639,9 +1253,38 @@ class DataStore {
     return this.payments.find((p) => p.jobId === jobId);
   }
 
-  quotePayment(gross: number, insuranceCost = 0) {
-    const commission = Math.round(gross * OFIX_COMMISSION_RATE);
-    return { gross, commission, insuranceCost, total: gross + commission + insuranceCost, net: gross };
+  // El seguro viene preseleccionado y es obligatorio en rubros de riesgo:
+  // así se reconcilian 2.2 ("incluidos") y 6.3 ("opcional u obligatorio según rubro").
+  isInsuranceMandatory(category: string): boolean {
+    return MANDATORY_INSURANCE_CATEGORIES.includes(category);
+  }
+
+  defaultInsurancePlanId(category: string): string {
+    return this.isInsuranceMandatory(category) ? DEFAULT_INSURANCE_PLAN_ID : DEFAULT_INSURANCE_PLAN_ID;
+  }
+
+  // Recargo por guardia si el trabajo cae fin de semana y el profesional cobra diferencial.
+  quoteSurcharge(workerId: string, when?: string): number {
+    const w = this.users.find((u) => u.id === workerId);
+    if (!w?.onCallWeekends) return 0;
+    const d = when ? new Date(when) : new Date();
+    if (Number.isNaN(d.getTime())) return 0;
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) return 0;
+    return (w.onCallSurcharge ?? DEFAULT_ONCALL_SURCHARGE_RATE * 100) / 100;
+  }
+
+  quotePayment(gross: number, insuranceCost = 0, surchargeRate = 0) {
+    const surcharge = Math.round(gross * surchargeRate);
+    const commission = Math.round((gross + surcharge) * OFIX_COMMISSION_RATE);
+    return {
+      gross,
+      surcharge,
+      commission,
+      insuranceCost,
+      total: gross + surcharge + commission + insuranceCost,
+      net: gross + surcharge,
+    };
   }
 
   createPayment(data: { jobId: string; method: PaymentMethod; insurancePlanId?: string }) {
@@ -649,9 +1292,16 @@ class DataStore {
     const job = this.jobs.find((j) => j.id === data.jobId);
     if (!job) throw new Error("Trabajo no encontrado");
     if (job.clientId !== me.id) throw new Error("No autorizado");
-    const plan = data.insurancePlanId ? INSURANCE_PLANS.find((p) => p.id === data.insurancePlanId) : undefined;
+    if (this.payments.some((p) => p.jobId === job.id)) throw new Error("Este trabajo ya tiene un pago registrado");
+
+    let planId = data.insurancePlanId;
+    // Rubros de riesgo: el seguro no se puede desactivar.
+    if (this.isInsuranceMandatory(job.category) && !planId) planId = DEFAULT_INSURANCE_PLAN_ID;
+    const plan = planId ? INSURANCE_PLANS.find((p) => p.id === planId) : undefined;
     const insuranceCost = plan?.cost || 0;
-    const q = this.quotePayment(job.amount, insuranceCost);
+    const surchargeRate = this.quoteSurcharge(job.workerId, job.scheduledAt);
+    const q = this.quotePayment(job.amount, insuranceCost, surchargeRate);
+
     const payment: Payment = {
       id: `pay${Date.now()}`,
       jobId: job.id,
@@ -660,6 +1310,7 @@ class DataStore {
       gross: q.gross,
       commission: q.commission,
       insuranceCost,
+      surcharge: q.surcharge,
       total: q.total,
       net: q.net,
       method: data.method,
@@ -669,10 +1320,189 @@ class DataStore {
     this.payments.push(payment);
     job.insurance = !!plan;
     job.insuranceCost = insuranceCost;
-    if (job.status === "agendado") job.status = "en_progreso";
+    job.insurancePlanId = planId;
     this.pushNotification(job.workerId, "pago", "Pago en garantía", `${me.name} pagó "${job.title}". Los fondos se liberan al validar el trabajo.`, `/w/agreements/${job.id}`);
     this.saveToStorage();
     return payment;
+  }
+
+  // ─────────────────── Reclamos / disputas (entrevista 7) ───────────────────
+  getDisputes(filters: { jobId?: string; userId?: string; status?: DisputeStatus } = {}) {
+    let list = [...this.disputes];
+    if (filters.jobId) list = list.filter((d) => d.jobId === filters.jobId);
+    if (filters.userId) list = list.filter((d) => d.openedBy === filters.userId || d.againstId === filters.userId);
+    if (filters.status) list = list.filter((d) => d.status === filters.status);
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  getDispute(jobId: string) {
+    return this.disputes.find((d) => d.jobId === jobId && d.status !== "resuelta_cliente" && d.status !== "resuelta_trabajador")
+      || this.disputes.find((d) => d.jobId === jobId);
+  }
+
+  // Abrir un reclamo CONGELA el escrow: los fondos no se liberan hasta resolver.
+  openDispute(data: { jobId: string; reason: DisputeReason; description: string; images?: string[] }) {
+    const me = this.requireAuth();
+    const job = this.jobs.find((j) => j.id === data.jobId);
+    if (!job) throw new Error("Trabajo no encontrado");
+    if (job.clientId !== me.id && job.workerId !== me.id) throw new Error("No autorizado");
+    const existing = this.disputes.find((d) => d.jobId === data.jobId && (d.status === "abierta" || d.status === "en_revision"));
+    if (existing) throw new Error("Ya hay un reclamo abierto para este trabajo");
+    if (!data.description.trim()) throw new Error("Contanos qué pasó para poder revisarlo");
+
+    const dispute: Dispute = {
+      id: `d${Date.now()}`,
+      jobId: data.jobId,
+      openedBy: me.id,
+      againstId: job.clientId === me.id ? job.workerId : job.clientId,
+      reason: data.reason,
+      description: data.description,
+      images: data.images,
+      status: "abierta",
+      createdAt: new Date().toISOString(),
+    };
+    this.disputes.push(dispute);
+
+    const payment = this.payments.find((p) => p.jobId === data.jobId);
+    if (payment && payment.status === "retenido") payment.status = "en_disputa";
+
+    this.pushNotification(dispute.againstId, "reclamo", "Se abrió un reclamo", `${me.name} abrió un reclamo sobre "${job.title}". Los fondos quedan congelados hasta resolverlo.`, "");
+    this.pushNotification(me.id, "reclamo", "Reclamo registrado", "OFIX va a revisar el caso. Los fondos quedaron congelados mientras se resuelve.", "");
+    this.saveToStorage();
+    return dispute;
+  }
+
+  // Resolución (simula la mediación de OFIX).
+  resolveDispute(disputeId: string, outcome: "cliente" | "trabajador", resolution: string) {
+    const i = this.disputes.findIndex((d) => d.id === disputeId);
+    if (i === -1) throw new Error("Reclamo no encontrado");
+    const dispute = this.disputes[i];
+    const now = new Date().toISOString();
+    this.disputes[i] = {
+      ...dispute,
+      status: outcome === "cliente" ? "resuelta_cliente" : "resuelta_trabajador",
+      resolution,
+      resolvedAt: now,
+    };
+
+    const job = this.jobs.find((j) => j.id === dispute.jobId);
+    const payment = this.payments.find((p) => p.jobId === dispute.jobId);
+    if (payment && payment.status === "en_disputa") {
+      if (outcome === "cliente") {
+        payment.status = "reembolsado";
+        if (job) job.status = "cancelado";
+      } else {
+        payment.status = "liberado";
+        payment.releasedAt = now;
+        if (job) {
+          job.status = "completado";
+          job.completedAt = now;
+          this.payouts.push({ id: `pay${Date.now()}`, workerId: job.workerId, amount: payment.net, status: "pendiente", createdAt: now });
+        }
+      }
+    }
+    [dispute.openedBy, dispute.againstId].forEach((uid) =>
+      this.pushNotification(uid, "reclamo", "Reclamo resuelto", resolution, ""),
+    );
+    this.saveToStorage();
+    return this.disputes[i];
+  }
+
+  // ─────────────────── Garantía / retrabajo (1.3, E1, E6) ───────────────────
+  isUnderWarranty(jobId: string): boolean {
+    const job = this.jobs.find((j) => j.id === jobId);
+    if (!job?.warrantyUntil || job.status !== "completado") return false;
+    return new Date(job.warrantyUntil).getTime() > Date.now();
+  }
+
+  warrantyDaysLeft(jobId: string): number | null {
+    const job = this.jobs.find((j) => j.id === jobId);
+    if (!job?.warrantyUntil) return null;
+    const left = Math.ceil((new Date(job.warrantyUntil).getTime() - Date.now()) / 86400000);
+    return left > 0 ? left : 0;
+  }
+
+  getWarrantyClaims(filters: { jobId?: string; clientId?: string; workerId?: string } = {}) {
+    let list = [...this.warrantyClaims];
+    if (filters.jobId) list = list.filter((c) => c.jobId === filters.jobId);
+    if (filters.clientId) list = list.filter((c) => c.clientId === filters.clientId);
+    if (filters.workerId) list = list.filter((c) => c.workerId === filters.workerId);
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  // Reclamar la garantía reabre el trabajo SIN volver a pagar.
+  claimWarranty(data: { jobId: string; description: string; images?: string[] }) {
+    const me = this.requireAuth();
+    const job = this.jobs.find((j) => j.id === data.jobId);
+    if (!job) throw new Error("Trabajo no encontrado");
+    if (job.clientId !== me.id) throw new Error("Solo el cliente puede reclamar la garantía");
+    if (!this.isUnderWarranty(data.jobId)) throw new Error("Este trabajo ya no está en garantía");
+    if (this.warrantyClaims.some((c) => c.jobId === data.jobId && (c.status === "abierto" || c.status === "agendado"))) {
+      throw new Error("Ya hay un reclamo de garantía abierto para este trabajo");
+    }
+    const claim: WarrantyClaim = {
+      id: `wc${Date.now()}`,
+      jobId: data.jobId,
+      clientId: job.clientId,
+      workerId: job.workerId,
+      description: data.description,
+      images: data.images,
+      status: "abierto",
+      createdAt: new Date().toISOString(),
+    };
+    this.warrantyClaims.push(claim);
+    this.pushNotification(job.workerId, "reclamo", "Reclamo de garantía", `${me.name} reclamó la garantía de "${job.title}". La revisión no se cobra.`, `/w/agreements/${job.id}`);
+    this.saveToStorage();
+    return claim;
+  }
+
+  // El trabajador agenda la revisión de garantía.
+  scheduleWarrantyVisit(claimId: string, scheduledAt: string) {
+    const me = this.requireAuth();
+    const i = this.warrantyClaims.findIndex((c) => c.id === claimId);
+    if (i === -1) throw new Error("Reclamo no encontrado");
+    if (this.warrantyClaims[i].workerId !== me.id) throw new Error("No autorizado");
+    this.warrantyClaims[i] = { ...this.warrantyClaims[i], status: "agendado", scheduledAt };
+    this.pushNotification(this.warrantyClaims[i].clientId, "reserva", "Revisión de garantía agendada", `${me.name} agendó la revisión sin cargo.`, "");
+    this.saveToStorage();
+    return this.warrantyClaims[i];
+  }
+
+  resolveWarrantyClaim(claimId: string, status: "resuelto" | "rechazado", note?: string) {
+    const i = this.warrantyClaims.findIndex((c) => c.id === claimId);
+    if (i === -1) throw new Error("Reclamo no encontrado");
+    this.warrantyClaims[i] = { ...this.warrantyClaims[i], status, resolvedAt: new Date().toISOString() };
+    this.pushNotification(
+      this.warrantyClaims[i].clientId,
+      "reclamo",
+      status === "resuelto" ? "Garantía resuelta" : "Garantía rechazada",
+      note || (status === "resuelto" ? "El profesional resolvió el retrabajo." : "El reclamo de garantía fue rechazado."),
+      "",
+    );
+    this.saveToStorage();
+    return this.warrantyClaims[i];
+  }
+
+  // ─────────────────── Precios de referencia (E1, E3, E6) ───────────────────
+  getPriceReference(category: string): PriceReference | null {
+    const jobPrices = this.jobs.filter((j) => j.category === category).map((j) => j.amount);
+    const servicePrices = this.services.filter((s) => s.category === category && s.active).map((s) => s.price);
+    const prices = [...jobPrices, ...servicePrices].filter((p) => p > 0);
+    if (prices.length === 0) return null;
+    return {
+      category,
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+      avg: Math.round(prices.reduce((s, p) => s + p, 0) / prices.length),
+      count: prices.length,
+    };
+  }
+
+  // ¿Esta oferta se va muy por encima de lo habitual? (umbral: 1.5× el promedio)
+  isPriceAbusive(category: string, price: number): boolean {
+    const ref = this.getPriceReference(category);
+    if (!ref || ref.count < 3) return false;
+    return price > ref.avg * 1.5;
   }
 
   // ──────────────────── Comprobantes / facturación ────────────────────
@@ -688,8 +1518,18 @@ class DataStore {
 
     // Numeración correlativa estable: el orden de alta de los pagos no cambia.
     const seq = this.payments.findIndex((p) => p.id === payment.id) + 1;
-    const kind: ReceiptKind = client?.clientType === "pyme_gastronomica" ? "A" : "B";
+    // Tipo A para quienes facturan (PyME y administradores), B para consumidor final.
+    const kind: ReceiptKind =
+      client?.clientType === "pyme_gastronomica" || client?.clientType === "administrador_consorcio" ? "A" : "B";
     const plan = payment.insuranceCost ? INSURANCE_PLANS.find((p) => p.cost === payment.insuranceCost) : undefined;
+    const property = job.propertyId ? this.properties.find((p) => p.id === job.propertyId) : undefined;
+
+    const clientDetail =
+      client?.clientType === "pyme_gastronomica"
+        ? "PyME gastronómica"
+        : client?.clientType === "administrador_consorcio"
+          ? "Administrador de consorcios"
+          : "Consumidor final";
 
     return {
       number: `OFIX-0001-${String(seq).padStart(8, "0")}`,
@@ -702,7 +1542,7 @@ class DataStore {
         email: client?.email,
         phone: client?.phone,
         address: client?.address || client?.zone,
-        detail: client?.clientType === "pyme_gastronomica" ? "PyME gastronómica" : "Consumidor final",
+        detail: clientDetail,
       },
       worker: {
         name: worker?.name || "Profesional",
@@ -717,9 +1557,12 @@ class DataStore {
       commission: payment.commission,
       insuranceCost: payment.insuranceCost,
       insuranceName: plan?.name,
+      surcharge: payment.surcharge || 0,
       total: payment.total,
+      net: payment.net,
       method: payment.method,
       status: payment.status,
+      propertyName: property?.name,
     };
   }
 
@@ -732,10 +1575,15 @@ class DataStore {
       .filter((r): r is Receipt => r !== null);
   }
 
-  // Facturación agrupada por mes (panel PyME / reportes mensuales).
-  getBillingPeriods(clientId: string): BillingPeriod[] {
+  // Facturación agrupada por mes (panel PyME / consorcios).
+  getBillingPeriods(clientId: string, propertyId?: string): BillingPeriod[] {
     const byMonth = new Map<string, Receipt[]>();
-    for (const r of this.getReceipts(clientId)) {
+    let receipts = this.getReceipts(clientId);
+    if (propertyId) {
+      const ids = new Set(this.jobs.filter((j) => j.propertyId === propertyId).map((j) => j.id));
+      receipts = receipts.filter((r) => ids.has(r.jobId));
+    }
+    for (const r of receipts) {
       const d = new Date(r.issuedAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const arr = byMonth.get(key);
@@ -744,24 +1592,116 @@ class DataStore {
     }
     return [...byMonth.entries()]
       .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([key, receipts]) => ({
+      .map(([key, list]) => ({
         key,
         label: new Date(`${key}-01T00:00:00`).toLocaleDateString("es-AR", { month: "long", year: "numeric" }),
-        jobs: receipts.length,
-        gross: receipts.reduce((s, r) => s + r.gross, 0),
-        commission: receipts.reduce((s, r) => s + r.commission, 0),
-        insuranceCost: receipts.reduce((s, r) => s + r.insuranceCost, 0),
-        total: receipts.reduce((s, r) => s + r.total, 0),
-        receipts,
+        jobs: list.length,
+        gross: list.reduce((s, r) => s + r.gross, 0),
+        commission: list.reduce((s, r) => s + r.commission, 0),
+        insuranceCost: list.reduce((s, r) => s + r.insuranceCost, 0),
+        total: list.reduce((s, r) => s + r.total, 0),
+        receipts: list,
       }));
   }
 
+  // ─────────────── Mantenimiento recurrente (2.2, 2.4) ───────────────
+  getRecurringPlans(clientId: string) {
+    return this.recurringPlans
+      .filter((p) => p.clientId === clientId)
+      .sort((a, b) => new Date(a.nextDate).getTime() - new Date(b.nextDate).getTime());
+  }
+
+  getRecurringPlan(id: string) {
+    return this.recurringPlans.find((p) => p.id === id);
+  }
+
+  createRecurringPlan(data: Omit<RecurringPlan, "id" | "clientId" | "createdAt" | "active"> & { active?: boolean }) {
+    const me = this.requireAuth();
+    if (me.role !== "user") throw new Error("Solo los clientes pueden programar mantenimiento");
+    const plan: RecurringPlan = {
+      ...data,
+      id: `rp${Date.now()}`,
+      clientId: me.id,
+      active: data.active ?? true,
+      createdAt: new Date().toISOString(),
+    };
+    this.recurringPlans.push(plan);
+    this.saveToStorage();
+    return plan;
+  }
+
+  updateRecurringPlan(id: string, patch: Partial<RecurringPlan>) {
+    const me = this.requireAuth();
+    const i = this.recurringPlans.findIndex((p) => p.id === id);
+    if (i === -1) throw new Error("Plan no encontrado");
+    if (this.recurringPlans[i].clientId !== me.id) throw new Error("No autorizado");
+    this.recurringPlans[i] = { ...this.recurringPlans[i], ...patch };
+    this.saveToStorage();
+    return this.recurringPlans[i];
+  }
+
+  deleteRecurringPlan(id: string) {
+    const me = this.requireAuth();
+    const p = this.recurringPlans.find((x) => x.id === id);
+    if (!p) throw new Error("Plan no encontrado");
+    if (p.clientId !== me.id) throw new Error("No autorizado");
+    this.recurringPlans = this.recurringPlans.filter((x) => x.id !== id);
+    this.saveToStorage();
+  }
+
+  // Genera las solicitudes de los planes vencidos. Corre al inicializar el store.
+  runRecurringPlans(): number {
+    const now = Date.now();
+    let created = 0;
+    this.recurringPlans.forEach((plan) => {
+      if (!plan.active) return;
+      if (new Date(plan.nextDate).getTime() > now) return;
+      const iso = new Date().toISOString();
+      const offer: Offer = {
+        id: `o${Date.now()}${created}`,
+        authorId: plan.clientId,
+        title: plan.title,
+        description: plan.description || `Mantenimiento programado (${plan.frequency}).`,
+        category: plan.category,
+        budget: plan.budget,
+        urgency: "programada",
+        scheduledDate: plan.nextDate,
+        location: plan.location,
+        geo: plan.geo,
+        images: [],
+        emergency: false,
+        status: "abierta",
+        propertyId: plan.propertyId,
+        createdAt: iso,
+        updatedAt: iso,
+      };
+      this.offers.push(offer);
+      plan.lastGeneratedAt = iso;
+      plan.nextDate = new Date(new Date(plan.nextDate).getTime() + FREQUENCY_DAYS[plan.frequency] * 86400000).toISOString();
+      this.pushNotification(plan.clientId, "reserva", "Mantenimiento programado", `Se generó la solicitud "${plan.title}".`, `/u/requests/${offer.id}`);
+      if (plan.workerId) {
+        this.pushNotification(plan.workerId, "oferta", "Mantenimiento recurrente", `${plan.title} está disponible para presupuestar.`, `/w/jobs/${offer.id}`);
+      }
+      created++;
+    });
+    if (created > 0) this.saveToStorage();
+    return created;
+  }
+
+  // ─────────────── Suscripción del cliente (entrevista 3) ───────────────
+  setClientPlan(plan: ClientPlan) {
+    const me = this.requireAuth();
+    if (me.role !== "user") throw new Error("Solo los clientes");
+    return this.updateUser(me.id, { clientPlan: plan });
+  }
+
   // ─────────────────────────── Reseñas ───────────────────────────
-  getReviews(filters: { targetId?: string; authorId?: string; jobId?: string } = {}) {
+  getReviews(filters: { targetId?: string; authorId?: string; jobId?: string; onlyVerified?: boolean } = {}) {
     let list = [...this.reviews];
     if (filters.targetId) list = list.filter((r) => r.targetId === filters.targetId);
     if (filters.authorId) list = list.filter((r) => r.authorId === filters.authorId);
     if (filters.jobId) list = list.filter((r) => r.jobId === filters.jobId);
+    if (filters.onlyVerified) list = list.filter((r) => r.verified);
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
@@ -769,7 +1709,23 @@ class DataStore {
     const me = this.requireAuth();
     const job = this.jobs.find((j) => j.id === data.jobId);
     if (!job) throw new Error("Trabajo no encontrado");
-    const review: Review = { id: `r${Date.now()}`, jobId: data.jobId, authorId: me.id, targetId: data.targetId, stars: data.stars, comment: data.comment, createdAt: new Date().toISOString() };
+    if (job.clientId !== me.id && job.workerId !== me.id) throw new Error("No autorizado");
+    if (data.stars < 1 || data.stars > 5) throw new Error("La calificación va de 1 a 5");
+    // Verificada = el trabajo se completó y tuvo un pago registrado en OFIX.
+    // Cierra el miedo a las reseñas falsas (entrevistas 2, 4 y 5).
+    const payment = this.payments.find((p) => p.jobId === data.jobId);
+    const verified = job.status === "completado" && !!payment;
+
+    const review: Review = {
+      id: `r${Date.now()}`,
+      jobId: data.jobId,
+      authorId: me.id,
+      targetId: data.targetId,
+      stars: data.stars,
+      comment: data.comment,
+      verified,
+      createdAt: new Date().toISOString(),
+    };
     this.reviews.push(review);
     if (me.id === job.clientId) job.reviewedByClient = true;
     if (me.id === job.workerId) job.reviewedByWorker = true;
@@ -779,6 +1735,31 @@ class DataStore {
     return review;
   }
 
+  // Derecho a réplica: el calificado puede responder una vez (E4 y E5 pidieron
+  // no quedar expuestos sin voz a una crítica pública).
+  replyToReview(reviewId: string, text: string) {
+    const me = this.requireAuth();
+    const i = this.reviews.findIndex((r) => r.id === reviewId);
+    if (i === -1) throw new Error("Reseña no encontrada");
+    if (this.reviews[i].targetId !== me.id) throw new Error("Solo podés responder las reseñas que te dejaron");
+    if (this.reviews[i].reply) throw new Error("Ya respondiste esta reseña");
+    if (!text.trim()) throw new Error("Escribí una respuesta");
+    this.reviews[i] = { ...this.reviews[i], reply: { text: text.trim(), createdAt: new Date().toISOString() } };
+    this.pushNotification(this.reviews[i].authorId, "sistema", "Respondieron tu reseña", `${me.name} respondió tu reseña.`, "");
+    this.saveToStorage();
+    return this.reviews[i];
+  }
+
+  reportReview(reviewId: string) {
+    const me = this.requireAuth();
+    const i = this.reviews.findIndex((r) => r.id === reviewId);
+    if (i === -1) throw new Error("Reseña no encontrada");
+    if (this.reviews[i].targetId !== me.id) throw new Error("No autorizado");
+    this.reviews[i] = { ...this.reviews[i], reportedAt: new Date().toISOString() };
+    this.saveToStorage();
+    return this.reviews[i];
+  }
+
   private recomputeRating(userId: string) {
     const rs = this.reviews.filter((r) => r.targetId === userId);
     const u = this.users.find((x) => x.id === userId);
@@ -786,6 +1767,30 @@ class DataStore {
       u.reviewCount = rs.length;
       u.rating = rs.length ? Math.round((rs.reduce((s, r) => s + r.stars, 0) / rs.length) * 10) / 10 : 0;
     }
+  }
+
+  // ─────────────────────────── NPS (KPI 3.5) ───────────────────────────
+  submitNps(data: { jobId: string; score: number; comment?: string }) {
+    const me = this.requireAuth();
+    if (data.score < 0 || data.score > 10) throw new Error("La puntuación va de 0 a 10");
+    if (this.npsResponses.some((n) => n.jobId === data.jobId && n.userId === me.id)) {
+      throw new Error("Ya respondiste la encuesta de este trabajo");
+    }
+    const res: NpsResponse = {
+      id: `nps${Date.now()}`,
+      userId: me.id,
+      jobId: data.jobId,
+      score: data.score,
+      comment: data.comment,
+      createdAt: new Date().toISOString(),
+    };
+    this.npsResponses.push(res);
+    this.saveToStorage();
+    return res;
+  }
+
+  hasAnsweredNps(jobId: string, userId: string) {
+    return this.npsResponses.some((n) => n.jobId === jobId && n.userId === userId);
   }
 
   // ─────────────────────────── Favoritos ───────────────────────────
@@ -833,8 +1838,10 @@ class DataStore {
     this.saveToStorage();
   }
 
+  private notifSeq = 0;
   private pushNotification(userId: string, type: NotificationType, title: string, body: string, link = "") {
-    this.notifications.push({ id: `n${Date.now()}${Math.floor(performance.now())}`, userId, type, title, body, read: false, link, createdAt: new Date().toISOString() });
+    this.notifSeq += 1;
+    this.notifications.push({ id: `n${Date.now()}-${this.notifSeq}`, userId, type, title, body, read: false, link, createdAt: new Date().toISOString() });
   }
 
   // ─────────────────────────── Chats & mensajes ───────────────────────────
@@ -879,9 +1886,11 @@ class DataStore {
     return this.messages.filter((m) => m.chatId === chatId).sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
   }
 
+  private msgSeq = 0;
   createMessage(chatId: string, text: string, image?: string) {
     const me = this.requireAuth();
-    const msg: Message = { id: `m${Date.now()}`, chatId, authorId: me.id, text, image, ts: new Date().toISOString(), status: "sent" };
+    this.msgSeq += 1;
+    const msg: Message = { id: `m${Date.now()}-${this.msgSeq}`, chatId, authorId: me.id, text, image, ts: new Date().toISOString(), status: "sent" };
     this.messages.push(msg);
     const ci = this.chats.findIndex((c) => c.id === chatId);
     const prevChat = ci !== -1 ? { ...this.chats[ci] } : null;
@@ -902,7 +1911,8 @@ class DataStore {
       if (chat) {
         const other = chat.participantIds.find((p) => p !== me.id);
         if (other) {
-          const reply: Message = { id: `m${Date.now()}`, chatId, authorId: other, text: "Gracias por tu mensaje! Te respondo pronto.", ts: new Date().toISOString(), status: "sent" };
+          this.msgSeq += 1;
+          const reply: Message = { id: `m${Date.now()}-${this.msgSeq}`, chatId, authorId: other, text: "Gracias por tu mensaje! Te respondo pronto.", ts: new Date().toISOString(), status: "sent" };
           this.messages.push(reply);
           if (ci !== -1) {
             this.chats[ci].lastMessageAt = reply.ts;
@@ -925,21 +1935,27 @@ class DataStore {
     const available = payouts.filter((p) => p.status === "pendiente").reduce((s, p) => s + p.amount, 0);
     const withdrawn = payouts.filter((p) => p.status === "liquidado").reduce((s, p) => s + p.amount, 0);
     const totalEarned = available + withdrawn;
-    return { available, withdrawn, totalEarned, count: payouts.length };
+    // Congelado por reclamos abiertos (visibilidad que pidió la entrevista 8).
+    const frozen = this.payments
+      .filter((p) => p.workerId === workerId && p.status === "en_disputa")
+      .reduce((s, p) => s + p.net, 0);
+    return { available, withdrawn, totalEarned, frozen, count: payouts.length };
   }
 
   // Retiro de fondos disponibles (a CBU/MP, sin comisión).
-  withdrawFunds() {
+  withdrawFunds(method: PaymentMethod = "mercadopago") {
     const me = this.requireAuth();
     if (me.role !== "worker") throw new Error("Solo los trabajadores pueden retirar");
     let total = 0;
     this.payouts.forEach((p) => {
       if (p.workerId === me.id && p.status === "pendiente") {
         p.status = "liquidado";
+        p.method = method;
         p.paidAt = new Date().toISOString();
         total += p.amount;
       }
     });
+    if (total === 0) throw new Error("No tenés fondos disponibles para retirar");
     this.saveToStorage();
     return total;
   }
@@ -962,6 +1978,12 @@ class DataStore {
     const wallet = this.getWalletSummary(workerId);
     const worker = this.users.find((u) => u.id === workerId);
     const acceptanceRate = proposals.length ? Math.round((proposals.filter((p) => p.status !== "rechazada" && p.status !== "enviada").length / proposals.length) * 100) : 0;
+    const responseRate = worker?.invitesReceived
+      ? Math.round(((worker.invitesAnswered || 0) / worker.invitesReceived) * 100)
+      : 0;
+    const avgResponseMinutes = worker?.invitesAnswered
+      ? Math.round((worker.responseMinutesTotal || 0) / worker.invitesAnswered)
+      : null;
     // Ingresos por mes (últimos 6 meses) para el gráfico.
     const now = new Date();
     const months: { label: string; income: number }[] = [];
@@ -976,16 +1998,145 @@ class DataStore {
         .reduce((s, j) => s + j.amount, 0);
       months.push({ label: monthNames[d.getMonth()], income });
     }
+    // Ingresos del mes en curso (métrica que pide el dashboard de la tesis, 2.12.5).
+    const monthIncome = months[months.length - 1]?.income || 0;
     return {
       totalJobs: completed.length,
-      activeJobs: jobs.filter((j) => j.status === "agendado" || j.status === "en_progreso").length,
+      activeJobs: jobs.filter((j) => j.status === "agendado" || j.status === "en_camino" || j.status === "en_progreso").length,
       proposalsSent: proposals.length,
       acceptanceRate,
+      responseRate,
+      avgResponseMinutes,
+      monthIncome,
       rating: worker?.rating || 0,
       reviewCount: worker?.reviewCount || 0,
       level: worker?.level || "bronze",
       wallet,
       months,
+    };
+  }
+
+  // Insights de demanda: dónde conviene ofrecerse (E4 y E5, estacionalidad).
+  getDemandInsights(workerId: string): DemandInsight[] {
+    const worker = this.users.find((u) => u.id === workerId);
+    const cats = worker?.trades?.length ? worker.trades : [...CATEGORIES];
+    return cats
+      .map((category) => {
+        const open = this.offers.filter((o) => o.category === category && o.status === "abierta");
+        const competitors = this.users.filter(
+          (u) => u.role === "worker" && (u.trades?.includes(category) || u.trade === category),
+        ).length;
+        const avgBudget = open.length ? Math.round(open.reduce((s, o) => s + o.budget, 0) / open.length) : 0;
+        return {
+          category,
+          openRequests: open.length,
+          competitors,
+          ratio: competitors ? Math.round((open.length / competitors) * 100) / 100 : open.length,
+          avgBudget,
+        };
+      })
+      .sort((a, b) => b.ratio - a.ratio);
+  }
+
+  // ─────────── Métricas del marketplace (tesis 3.5 y 3.6.3) ───────────
+  getMarketplaceMetrics(): MarketplaceMetrics {
+    const clients = this.users.filter((u) => u.role === "user");
+    const workers = this.users.filter((u) => u.role === "worker");
+    const completed = this.jobs.filter((j) => j.status === "completado");
+    const cancelled = this.jobs.filter((j) => j.status === "cancelado");
+
+    // Time-to-match: solicitud → primera propuesta.
+    const matched = this.offers.filter((o) => o.firstProposalAt);
+    const timeToMatchHours = matched.length
+      ? Math.round(
+          (matched.reduce(
+            (s, o) => s + (new Date(o.firstProposalAt!).getTime() - new Date(o.createdAt).getTime()),
+            0,
+          ) /
+            matched.length /
+            3600000) *
+            10,
+        ) / 10
+      : null;
+
+    // Fill rate: solicitudes con al menos una propuesta.
+    const withProposal = this.offers.filter((o) => this.proposals.some((p) => p.offerId === o.id)).length;
+    const fillRate = this.offers.length ? Math.round((withProposal / this.offers.length) * 100) : 0;
+
+    const cancelRate = this.jobs.length ? Math.round((cancelled.length / this.jobs.length) * 100) : 0;
+    const closed = completed.length + cancelled.length;
+    const disputeRate = closed ? Math.round((this.disputes.length / closed) * 100) : 0;
+
+    // Liquidez de oferta por zona.
+    const zones = new Map<string, { availableNow: number; total: number }>();
+    workers.forEach((w) => {
+      const zone = (w.zone || "Sin zona").split(",")[0].trim();
+      const entry = zones.get(zone) || { availableNow: 0, total: 0 };
+      entry.total += 1;
+      if (this.getAvailabilityStatus(w.id) === "disponible") entry.availableNow += 1;
+      zones.set(zone, entry);
+    });
+    const liquidityByZone: ZoneLiquidity[] = [...zones.entries()]
+      .map(([zone, v]) => ({ zone, ...v }))
+      .sort((a, b) => b.total - a.total);
+
+    // Conversión: clientes que pidieron al menos un servicio.
+    const requesters = new Set(this.offers.map((o) => o.authorId));
+    const clientConversion = clients.length ? Math.round((requesters.size / clients.length) * 100) : 0;
+
+    // Retención: usuarios con más de un trabajo / trabajadores con al menos uno.
+    const jobsByClient = new Map<string, number>();
+    this.jobs.forEach((j) => jobsByClient.set(j.clientId, (jobsByClient.get(j.clientId) || 0) + 1));
+    const recurrent = [...jobsByClient.values()].filter((n) => n > 1).length;
+    const userRetention = jobsByClient.size ? Math.round((recurrent / jobsByClient.size) * 100) : 0;
+    const activeWorkers = new Set(this.jobs.map((j) => j.workerId)).size;
+    const workerRetention = workers.length ? Math.round((activeWorkers / workers.length) * 100) : 0;
+
+    // Tasa de respuesta de trabajadores.
+    const invites = workers.reduce((s, w) => s + (w.invitesReceived || 0), 0);
+    const answered = workers.reduce((s, w) => s + (w.invitesAnswered || 0), 0);
+    const workerResponseRate = invites ? Math.round((answered / invites) * 100) : 0;
+
+    // Éxito de emparejamiento: completados sobre solicitudes iniciadas.
+    const matchingSuccessRate = this.offers.length ? Math.round((completed.length / this.offers.length) * 100) : 0;
+
+    const gmv = this.payments.reduce((s, p) => s + p.total, 0);
+    const avgTicket = this.payments.length ? Math.round(gmv / this.payments.length) : 0;
+
+    // NPS = % promotores (9-10) − % detractores (0-6).
+    const nps = this.npsResponses.length
+      ? Math.round(
+          ((this.npsResponses.filter((n) => n.score >= 9).length -
+            this.npsResponses.filter((n) => n.score <= 6).length) /
+            this.npsResponses.length) *
+            100,
+        )
+      : null;
+
+    return {
+      timeToMatchHours,
+      fillRate,
+      cancelRate,
+      disputeRate,
+      liquidityByZone,
+      clientConversion,
+      userRetention,
+      workerRetention,
+      workerResponseRate,
+      matchingSuccessRate,
+      avgTicket,
+      nps,
+      npsResponses: this.npsResponses.length,
+      totals: {
+        clients: clients.length,
+        workers: workers.length,
+        offers: this.offers.length,
+        jobs: this.jobs.length,
+        completed: completed.length,
+        cancelled: cancelled.length,
+        disputes: this.disputes.length,
+        gmv,
+      },
     };
   }
 

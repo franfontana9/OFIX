@@ -1,6 +1,20 @@
 # OFIX Connect — Tareas pendientes
 
 > Actualizar a medida que se completan/agregan.
+> **La fuente de la verdad del backlog es [`TESIS-GAP.md`](TESIS-GAP.md)**: matriz de cumplimiento
+> tesis → app, con la sección del TFG que exige cada ítem. Este archivo es el resumen operativo.
+
+## Prioridad según la tesis (ver TESIS-GAP.md)
+- [ ] **Bloque A — Legal**: T&C, Política de Privacidad (Ley 25.326), contrato del trabajador
+      (sin relación laboral), aceptación en el registro, disclaimer del seguro, flujo de reclamos.
+      *La sección 6 de la tesis no tiene NINGÚN reflejo en el producto.* ← empezar por acá
+- [ ] **Bloque B — Fidelidad al prototipo (2.12)**: subtítulo de la landing, «Ofrece servicios»,
+      buscador central, «Ofertas recibidas» en el home, 4ª métrica del dashboard del trabajador.
+- [ ] **Bloque C — Deuda de usabilidad (2.12.7)**: la tesis detectó que «historial y gestión de
+      propuestas» tiene demasiados pasos. Sin atender.
+- [ ] **Bloque E1 — Tests**: no hay suite.
+- [ ] **Bloque D — Integraciones reales**: documentar como simuladas, no construir (necesitan
+      backend, credenciales o convenios).
 
 ## En curso / próximo
 - [ ] **Pase estético "premium"**: glows, gradientes y microanimaciones más marcadas (pedido del usuario).

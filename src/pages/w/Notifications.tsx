@@ -1,6 +1,6 @@
 import { useMemo, useReducer, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, DollarSign, Calendar, FileText, Siren, Bell, type LucideIcon } from "lucide-react";
+import { MessageCircle, DollarSign, Calendar, FileText, Siren, Bell, Navigation, ShieldAlert, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ofix/PageHeader";
@@ -15,6 +15,8 @@ const ICONS: Record<NotificationType, LucideIcon> = {
   reserva: Calendar,
   oferta: FileText,
   emergencia: Siren,
+  seguimiento: Navigation,
+  reclamo: ShieldAlert,
   sistema: Bell,
 };
 

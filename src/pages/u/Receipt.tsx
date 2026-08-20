@@ -4,16 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { store } from "@/lib/store";
-import { PAYMENT_METHOD_LABELS, type PaymentStatus } from "@/lib/types";
+import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS as STATUS_LABELS } from "@/lib/types";
 
 const money = (n: number) => `$${n.toLocaleString("es-AR")}`;
-
-const STATUS_LABELS: Record<PaymentStatus, string> = {
-  pendiente: "Pendiente de pago",
-  retenido: "Pagado — retenido en garantía",
-  liberado: "Pagado y liberado",
-  reembolsado: "Reembolsado",
-};
 
 function formatDate(iso?: string) {
   if (!iso) return "—";
