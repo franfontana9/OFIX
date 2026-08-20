@@ -366,6 +366,7 @@ export default function UserJobDetail() {
                 <span>10 — Muy probable</span>
               </div>
               <Textarea
+                aria-label="Comentario opcional sobre tu puntuación"
                 placeholder="¿Querés contarnos por qué? (opcional)"
                 value={npsComment}
                 onChange={(e) => setNpsComment(e.target.value)}

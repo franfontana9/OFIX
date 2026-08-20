@@ -105,7 +105,8 @@ export default function Metrics() {
     destructive: "text-destructive",
     muted: "text-muted-foreground",
   };
-  const npsMarker = m.nps === null ? 50 : ((m.nps + 100) / 200) * 100;
+  // Clampeado: en los extremos (−100 / +100) el marcador quedaba medio cortado.
+  const npsMarker = m.nps === null ? 50 : Math.min(98, Math.max(2, ((m.nps + 100) / 200) * 100));
 
   const totals: { label: string; value: number; icon: LucideIcon }[] = [
     { label: "Clientes", value: m.totals.clients, icon: Users },
@@ -347,24 +348,29 @@ export default function Metrics() {
                   </div>
                   <p className={cn("text-sm font-medium", npsColor[npsTone])}>{npsText[npsTone]}</p>
                   <div>
-                    <div className="relative h-2.5 w-full overflow-hidden rounded-full">
-                      <div className="absolute inset-0 flex">
+                    {/* El overflow-hidden va en el wrapper de los tramos, no en
+                        el contenedor: si no, recorta el marcador, que es más
+                        alto que la barra a propósito. */}
+                    <div className="relative h-4 w-full">
+                      <div className="absolute inset-x-0 top-1/2 flex h-2.5 -translate-y-1/2 overflow-hidden rounded-full">
                         <div className="h-full w-1/2 bg-destructive/25" />
                         <div className="h-full w-1/4 bg-accent/30" />
                         <div className="h-full w-1/4 bg-success/30" />
                       </div>
                       <div
                         className={cn(
-                          "absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full",
+                          "absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-card",
                           npsTone === "success" ? "bg-success" : npsTone === "accent" ? "bg-accent" : "bg-destructive",
                         )}
                         style={{ left: `${npsMarker}%` }}
                       />
                     </div>
+                    {/* Tres marcas: con justify-between caen en 0/50/100%, que
+                        es donde realmente están. Con cuatro quedaban en
+                        0/33/66/100 y el "+50" mentía sobre la escala. */}
                     <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
                       <span>−100</span>
                       <span>0</span>
-                      <span>+50</span>
                       <span>+100</span>
                     </div>
                   </div>

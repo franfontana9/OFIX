@@ -246,7 +246,9 @@ export default function UserProperties() {
                         <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Activos</p>
                       </div>
                       <div className="px-2 py-3">
-                        <p className="truncate text-lg font-bold leading-none">{money(stats.spent)}</p>
+                        {/* Más chico en mobile: en 1/3 de columna un monto
+                            largo se truncaba a "$20…" y se perdía el dato. */}
+                        <p className="truncate text-sm font-bold leading-none sm:text-lg">{money(stats.spent)}</p>
                         <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Gastado</p>
                       </div>
                     </div>

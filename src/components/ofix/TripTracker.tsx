@@ -39,13 +39,18 @@ export function TripTracker({
 }) {
   const [, tick] = useReducer((x: number) => x + 1, 0);
 
+  const state = store.getTrackingState(jobId);
+  const trayectoTerminado = !!state?.arrivedAt || state?.status === "completado";
+
   // ETA en vivo: re-render cada 5s y nueva lectura del estado derivado.
+  // Se corta cuando el trayecto terminó: no tiene sentido seguir latiendo
+  // en un trabajo que ya llegó o se completó.
   useEffect(() => {
+    if (trayectoTerminado) return;
     const id = window.setInterval(() => tick(), TICK_MS);
     return () => window.clearInterval(id);
-  }, [jobId]);
+  }, [jobId, trayectoTerminado]);
 
-  const state = store.getTrackingState(jobId);
   if (!state) return null;
   if (!TRACKABLE.includes(state.status) || !state.departedAt) return null;
 
@@ -57,7 +62,9 @@ export function TripTracker({
   const arrived = !!state.arrivedAt;
   const completed = state.status === "completado";
   const eta = state.etaMinutes;
-  const pct = Math.round(Math.max(0, Math.min(1, state.progress)) * 100);
+  // Si ya llegó, la barra va al 100% aunque el ETA declarado no se haya
+  // cumplido: si no, decía "Llegó" en verde con la barra a mitad de camino.
+  const pct = arrived || completed ? 100 : Math.round(Math.max(0, Math.min(1, state.progress)) * 100);
   // El puntero no puede quedar cortado en los extremos de la barra.
   const markerPct = Math.min(96, Math.max(4, pct));
 
@@ -148,9 +155,13 @@ export function TripTracker({
           <div className="rounded-lg border bg-muted/40 p-3">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <MapPin className="h-3.5 w-3.5" />
-              Distancia restante
+              {arrived ? "Ubicación" : "Distancia restante"}
             </div>
-            <p className="mt-1 text-lg font-bold tabular-nums">{arrived ? "Llegó" : km(state.distanceKm)}</p>
+            {/* La etiqueta acompaña al valor: antes decía "Distancia restante"
+                con el valor "Llegó", que no cierra. */}
+            <p className="mt-1 text-lg font-bold tabular-nums">
+              {arrived ? "En el domicilio" : km(state.distanceKm)}
+            </p>
           </div>
           <div className="rounded-lg border bg-muted/40 p-3">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">

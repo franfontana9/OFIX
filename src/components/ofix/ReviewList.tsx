@@ -192,6 +192,7 @@ export function ReviewList({ targetId, className }: { targetId: string; classNam
                         {respondiendo ? (
                           <div className="space-y-2">
                             <Textarea
+                              aria-label="Tu respuesta a esta reseña"
                               value={draft}
                               onChange={(e) => setDraft(e.target.value)}
                               placeholder="Contá tu versión con respeto. Se publica una sola vez y queda visible junto a la reseña."

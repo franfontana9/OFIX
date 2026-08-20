@@ -85,12 +85,16 @@ export default function TrackShared() {
   const [, tick] = useReducer((x: number) => x + 1, 0);
 
   // ETA en vivo: forzamos re-render y volvemos a pedirle el estado derivado al store.
+  const data = token ? store.getTrackingByToken(token) : null;
+
+  // El ETA solo tiene que correr mientras el profesional está viajando: una vez
+  // que llegó o el trabajo cerró, este link deja de latir.
+  const enViaje = data?.status === "en_camino" && !data.state?.arrivedAt;
   useEffect(() => {
+    if (!enViaje) return;
     const id = window.setInterval(() => tick(), TICK_MS);
     return () => window.clearInterval(id);
-  }, []);
-
-  const data = token ? store.getTrackingByToken(token) : null;
+  }, [enViaje]);
 
   // ── Link inválido o vencido ──
   if (!data) {
