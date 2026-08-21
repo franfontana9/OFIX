@@ -3,11 +3,5 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    {
-      "comment": "SPA: todo va al index.html MENOS /assets. Si el catch-all incluye los assets, un chunk que ya no existe (pestaña con el index viejo tras un redeploy) devuelve HTML con status 200 en vez de 404, el import() dinamico falla por MIME type y la pantalla queda en blanco.",
-      "source": "/((?!assets/).*)",
-      "destination": "/index.html"
-    }
-  ]
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
 }
