@@ -19,6 +19,14 @@ export interface MapPoint {
   /** "disponible" pinta el pin en verde y lo muestra en el popup. */
   availability?: "disponible" | "ocupado" | "fuera_de_horario";
   availabilityLabel?: string;
+  /** Color explícito del pin, para mapas que no son de disponibilidad
+      (por ejemplo el del profesional, donde el color indica urgencia). */
+  pinColor?: string;
+  /** Etiqueta libre bajo el nombre en el popup, con su color. */
+  tagLabel?: string;
+  tagColor?: string;
+  /** Texto del botón de acción del popup. Por defecto "Ver perfil". */
+  actionLabel?: string;
 }
 
 const AVAILABILITY_COLOR: Record<string, string> = {
@@ -94,7 +102,11 @@ export function RealMap({
             key={p.id}
             position={[p.lat, p.lng]}
             // El color del pin dice de un vistazo quién puede ir ahora.
-            icon={pin(p.availability ? AVAILABILITY_COLOR[p.availability] || primary : primary)}
+            icon={pin(
+              p.pinColor || (p.availability ? AVAILABILITY_COLOR[p.availability] || primary : primary),
+              // El pin de un profesional en viaje late, para que se lea que se mueve.
+              !!p.pinColor && !!p.tagLabel,
+            )}
             eventHandlers={{ click: () => onSelect?.(p.id) }}
           >
             <Popup>
@@ -115,6 +127,23 @@ export function RealMap({
                     {p.subtitle && <div style={{ color: "#64748b", fontSize: 12 }}>{p.subtitle}</div>}
                   </div>
                 </div>
+                {p.tagLabel && (
+                  <div style={{ margin: "8px 0 0" }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: p.tagColor || "#2563eb",
+                      }}
+                    >
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: p.tagColor || "#2563eb" }} />
+                      {p.tagLabel}
+                    </span>
+                  </div>
+                )}
                 {p.availabilityLabel && (
                   <div style={{ margin: "8px 0 0" }}>
                     <span
@@ -151,7 +180,7 @@ export function RealMap({
                     onClick={() => onSelect(p.id)}
                     style={{ width: "100%", background: "#2563eb", color: "#fff", border: 0, borderRadius: 8, padding: "7px 8px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                   >
-                    Ver perfil
+                    {p.actionLabel || "Ver perfil"}
                   </button>
                 )}
               </div>

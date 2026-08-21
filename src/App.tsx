@@ -83,6 +83,7 @@ const UserSettings = lazyPage(() => import("@/pages/u/Settings"));
 // Trabajador
 const WorkerHome = lazyPage(() => import("@/pages/w/Home"));
 const WorkerJobs = lazyPage(() => import("@/pages/w/Jobs"));
+const WorkerMapView = lazyPage(() => import("@/pages/w/MapView"));
 const WorkerJobDetail = lazyPage(() => import("@/pages/w/JobDetail"));
 const WorkerServices = lazyPage(() => import("@/pages/w/Services"));
 const WorkerNewService = lazyPage(() => import("@/pages/w/NewService"));
@@ -158,6 +159,7 @@ export default function App() {
           <Route element={<ProtectedRoute requiredRole="worker"><AppLayout /></ProtectedRoute>}>
             <Route path="/w/home" element={<WorkerHome />} />
             <Route path="/w/jobs" element={<WorkerJobs />} />
+            <Route path="/w/map" element={<WorkerMapView />} />
             <Route path="/w/jobs/:id" element={<WorkerJobDetail />} />
             <Route path="/w/services" element={<WorkerServices />} />
             <Route path="/w/services/new" element={<WorkerNewService />} />

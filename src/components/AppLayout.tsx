@@ -60,6 +60,7 @@ const CONSORCIO_NAV: NavItem = { to: "/u/business", label: "Panel de administrac
 const WORKER_NAV: NavItem[] = [
   { to: "/w/home", label: "Inicio", icon: Home },
   { to: "/w/jobs", label: "Buscar trabajos", icon: Search },
+  { to: "/w/map", label: "Mapa de cercanos", icon: MapPin },
   { to: "/w/services", label: "Mis servicios", icon: Wrench },
   { to: "/w/services/new", label: "Publicar servicio", icon: Plus },
   { to: "/w/proposals", label: "Mis propuestas", icon: Send },
