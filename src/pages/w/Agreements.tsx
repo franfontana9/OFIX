@@ -8,14 +8,14 @@ import { EmptyState } from "@/components/ofix/EmptyState";
 import { JobStatusBadge } from "@/components/ofix/badges";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
-import type { Job, JobStatus } from "@/lib/types";
+import { isJobActive, type Job, type JobStatus } from "@/lib/types";
 
 export default function WorkerAgreements() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const jobs = store.getJobs({ workerId: user!.id });
 
-  const activos = jobs.filter((j) => j.status === "agendado" || j.status === "en_progreso");
+  const activos = jobs.filter((j) => isJobActive(j.status));
   const completados = jobs.filter((j) => j.status === "completado");
   const cancelados = jobs.filter((j) => j.status === "cancelado");
 

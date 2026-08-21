@@ -68,7 +68,7 @@ import {
 const DATA_KEY = "ofix-data";
 const TOKEN_KEY = "ofix-token";
 // Bump cuando cambia el esquema de datos: invalida el localStorage viejo y re-seedea.
-const DATA_VERSION = 7;
+const DATA_VERSION = 8;
 
 // Foto real y temática (Creative Commons) por palabra clave, para el seed.
 function photo(keyword: string, lock: number, w = 480, h = 360): string {
@@ -307,6 +307,24 @@ class DataStore {
       { id: "pay-j2", jobId: "j2", clientId: "u3", workerId: "w2", gross: 12000, commission: 1800, insuranceCost: 0, surcharge: 0, total: 13800, net: 12000, method: "mercadopago", status: "liberado", createdAt: daysAgo(12), releasedAt: daysAgo(10) },
       { id: "pay-j8", jobId: "j8", clientId: "u4", workerId: "w4", gross: 18000, commission: 2700, insuranceCost: 0, surcharge: 0, total: 20700, net: 18000, method: "transferencia", status: "liberado", createdAt: daysAgo(17), releasedAt: daysAgo(15) },
       { id: "pay-j7", jobId: "j7", clientId: "u3", workerId: "w3", gross: 5500, commission: 825, insuranceCost: 800, surcharge: 0, total: 7125, net: 5500, method: "mercadopago", status: "retenido", createdAt: minsAgo(44) },
+
+      // Todo trabajo completado tiene su pago: si no, el detalle del acuerdo
+      // muestra "se liberaron los fondos" y abajo "el cliente no pagó".
+      { id: "pay-j3", jobId: "j3", clientId: "u2", workerId: "w1", gross: 4500, commission: 675, insuranceCost: 0, surcharge: 0, total: 5175, net: 4500, method: "efectivo", status: "liberado", createdAt: daysAgo(47), releasedAt: daysAgo(45) },
+      { id: "pay-j4", jobId: "j4", clientId: "u1", workerId: "w1", gross: 7000, commission: 1050, insuranceCost: 800, surcharge: 0, total: 8850, net: 7000, method: "mercadopago", status: "liberado", createdAt: daysAgo(9), releasedAt: daysAgo(8) },
+      { id: "pay-j5", jobId: "j5", clientId: "u2", workerId: "w3", gross: 5000, commission: 750, insuranceCost: 0, surcharge: 0, total: 5750, net: 5000, method: "transferencia", status: "liberado", createdAt: daysAgo(7), releasedAt: daysAgo(6) },
+      { id: "pay-j12", jobId: "j12", clientId: "u1", workerId: "w5", gross: 14000, commission: 2100, insuranceCost: 800, surcharge: 0, total: 16900, net: 14000, method: "mercadopago", status: "liberado", createdAt: daysAgo(37), releasedAt: daysAgo(35) },
+      { id: "pay-j13", jobId: "j13", clientId: "u3", workerId: "w6", gross: 21000, commission: 3150, insuranceCost: 0, surcharge: 0, total: 24150, net: 21000, method: "mercadopago", status: "liberado", createdAt: daysAgo(30), releasedAt: daysAgo(28) },
+      { id: "pay-j14", jobId: "j14", clientId: "u2", workerId: "w8", gross: 16000, commission: 2400, insuranceCost: 0, surcharge: 0, total: 18400, net: 16000, method: "transferencia", status: "liberado", createdAt: daysAgo(24), releasedAt: daysAgo(22) },
+      { id: "pay-j15", jobId: "j15", clientId: "u4", workerId: "w10", gross: 22000, commission: 3300, insuranceCost: 0, surcharge: 0, total: 25300, net: 22000, method: "transferencia", status: "liberado", createdAt: daysAgo(42), releasedAt: daysAgo(40) },
+      { id: "pay-j16", jobId: "j16", clientId: "u3", workerId: "w11", gross: 11000, commission: 1650, insuranceCost: 0, surcharge: 0, total: 12650, net: 11000, method: "efectivo", status: "liberado", createdAt: daysAgo(19), releasedAt: daysAgo(18) },
+      { id: "pay-j17", jobId: "j17", clientId: "u1", workerId: "w12", gross: 38000, commission: 5700, insuranceCost: 2000, surcharge: 0, total: 45700, net: 38000, method: "mercadopago", status: "liberado", createdAt: daysAgo(55), releasedAt: daysAgo(50) },
+      { id: "pay-j18", jobId: "j18", clientId: "u2", workerId: "w7", gross: 4200, commission: 630, insuranceCost: 0, surcharge: 0, total: 4830, net: 4200, method: "efectivo", status: "liberado", createdAt: daysAgo(13), releasedAt: daysAgo(12) },
+      { id: "pay-j19", jobId: "j19", clientId: "u1", workerId: "w16", gross: 26000, commission: 3900, insuranceCost: 0, surcharge: 0, total: 29900, net: 26000, method: "mercadopago", status: "liberado", createdAt: daysAgo(64), releasedAt: daysAgo(60) },
+      // Los dos trabajos en curso de Juan ya están pagados y en garantía.
+      { id: "pay-j9", jobId: "j9", clientId: "u2", workerId: "w1", gross: 8500, commission: 1275, insuranceCost: 800, surcharge: 0, total: 10575, net: 8500, method: "mercadopago", status: "retenido", createdAt: daysAgo(2) },
+      { id: "pay-j10", jobId: "j10", clientId: "u3", workerId: "w1", gross: 12000, commission: 1800, insuranceCost: 800, surcharge: 0, total: 14600, net: 12000, method: "mercadopago", status: "retenido", createdAt: daysAgo(1) },
+      { id: "pay-j11", jobId: "j11", clientId: "u4", workerId: "w14", gross: 32000, commission: 4800, insuranceCost: 0, surcharge: 0, total: 36800, net: 32000, method: "transferencia", status: "retenido", createdAt: daysAgo(4) },
     ];
 
     this.reviews = [

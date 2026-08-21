@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, type ComponentType } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -6,70 +6,102 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageFallback } from "@/components/PageFallback";
 import { useAuth } from "@/lib/auth";
 
+const CHUNK_RELOAD_KEY = "ofix-chunk-reload";
+
+/**
+ * `lazy` con recuperación ante un chunk que no carga.
+ *
+ * Con code-splitting, los nombres de los chunks llevan hash. Si la app se
+ * redeploya mientras alguien tiene una pestaña abierta, ese `index.html` viejo
+ * pide un chunk que ya no existe y el `import()` falla: la pantalla queda en
+ * blanco y ni el ErrorBoundary lo ve, porque el error vive en una promesa
+ * adentro de Suspense.
+ *
+ * Ante ese fallo se recarga la página UNA sola vez (la bandera va en
+ * sessionStorage) para tomar el index.html nuevo. Si vuelve a fallar después de
+ * recargar, el error se propaga de verdad en vez de quedar en un loop.
+ */
+function lazyPage<T extends ComponentType<unknown>>(factory: () => Promise<{ default: T }>) {
+  return lazy(() =>
+    factory()
+      .then((mod) => {
+        sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+        return mod;
+      })
+      .catch((err) => {
+        if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+          sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+          window.location.reload();
+        }
+        throw err;
+      }),
+  );
+}
+
 // Todas las pantallas se cargan por demanda (code-splitting por ruta): el bundle
 // inicial queda chico y las dependencias pesadas (Leaflet en el mapa) sólo se
 // descargan cuando el usuario entra a la pantalla que las usa.
-const Landing = lazy(() => import("@/pages/Landing"));
-const Explore = lazy(() => import("@/pages/Explore"));
-const PublicWorker = lazy(() => import("@/pages/PublicWorker"));
-const Login = lazy(() => import("@/pages/auth/Login"));
-const Register = lazy(() => import("@/pages/auth/Register"));
-const Forgot = lazy(() => import("@/pages/auth/Forgot"));
-const Onboarding = lazy(() => import("@/pages/Onboarding"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
+const Landing = lazyPage(() => import("@/pages/Landing"));
+const Explore = lazyPage(() => import("@/pages/Explore"));
+const PublicWorker = lazyPage(() => import("@/pages/PublicWorker"));
+const Login = lazyPage(() => import("@/pages/auth/Login"));
+const Register = lazyPage(() => import("@/pages/auth/Register"));
+const Forgot = lazyPage(() => import("@/pages/auth/Forgot"));
+const Onboarding = lazyPage(() => import("@/pages/Onboarding"));
+const NotFound = lazyPage(() => import("@/pages/NotFound"));
 // Seguimiento compartido con un contacto de confianza: público, sin login.
-const TrackShared = lazy(() => import("@/pages/TrackShared"));
+const TrackShared = lazyPage(() => import("@/pages/TrackShared"));
 
 // Usuario / cliente
-const UserHome = lazy(() => import("@/pages/u/Home"));
-const UserSearch = lazy(() => import("@/pages/u/Search"));
-const UserMapView = lazy(() => import("@/pages/u/MapView"));
-const UserWorkerProfile = lazy(() => import("@/pages/u/WorkerProfile"));
-const UserRequests = lazy(() => import("@/pages/u/Requests"));
-const UserNewRequest = lazy(() => import("@/pages/u/NewRequest"));
-const UserRequestDetail = lazy(() => import("@/pages/u/RequestDetail"));
-const UserHire = lazy(() => import("@/pages/u/Hire"));
-const UserPay = lazy(() => import("@/pages/u/Pay"));
-const UserJobs = lazy(() => import("@/pages/u/Jobs"));
-const UserJobDetail = lazy(() => import("@/pages/u/JobDetail"));
-const UserReceipt = lazy(() => import("@/pages/u/Receipt"));
-const UserReview = lazy(() => import("@/pages/u/Review"));
-const UserDispute = lazy(() => import("@/pages/u/Dispute"));
-const UserWarranty = lazy(() => import("@/pages/u/Warranty"));
-const UserProperties = lazy(() => import("@/pages/u/Properties"));
-const UserRecurring = lazy(() => import("@/pages/u/Recurring"));
-const UserFavorites = lazy(() => import("@/pages/u/Favorites"));
-const UserEmergency = lazy(() => import("@/pages/u/Emergency"));
-const UserBusiness = lazy(() => import("@/pages/u/Business"));
-const UserAgenda = lazy(() => import("@/pages/u/Agenda"));
-const UserChat = lazy(() => import("@/pages/u/Chat"));
-const UserChatDetail = lazy(() => import("@/pages/u/ChatDetail"));
-const UserNotifications = lazy(() => import("@/pages/u/Notifications"));
-const UserProfile = lazy(() => import("@/pages/u/Profile"));
-const UserSettings = lazy(() => import("@/pages/u/Settings"));
+const UserHome = lazyPage(() => import("@/pages/u/Home"));
+const UserSearch = lazyPage(() => import("@/pages/u/Search"));
+const UserMapView = lazyPage(() => import("@/pages/u/MapView"));
+const UserWorkerProfile = lazyPage(() => import("@/pages/u/WorkerProfile"));
+const UserRequests = lazyPage(() => import("@/pages/u/Requests"));
+const UserNewRequest = lazyPage(() => import("@/pages/u/NewRequest"));
+const UserRequestDetail = lazyPage(() => import("@/pages/u/RequestDetail"));
+const UserHire = lazyPage(() => import("@/pages/u/Hire"));
+const UserPay = lazyPage(() => import("@/pages/u/Pay"));
+const UserJobs = lazyPage(() => import("@/pages/u/Jobs"));
+const UserJobDetail = lazyPage(() => import("@/pages/u/JobDetail"));
+const UserReceipt = lazyPage(() => import("@/pages/u/Receipt"));
+const UserReview = lazyPage(() => import("@/pages/u/Review"));
+const UserDispute = lazyPage(() => import("@/pages/u/Dispute"));
+const UserWarranty = lazyPage(() => import("@/pages/u/Warranty"));
+const UserProperties = lazyPage(() => import("@/pages/u/Properties"));
+const UserRecurring = lazyPage(() => import("@/pages/u/Recurring"));
+const UserFavorites = lazyPage(() => import("@/pages/u/Favorites"));
+const UserEmergency = lazyPage(() => import("@/pages/u/Emergency"));
+const UserBusiness = lazyPage(() => import("@/pages/u/Business"));
+const UserAgenda = lazyPage(() => import("@/pages/u/Agenda"));
+const UserChat = lazyPage(() => import("@/pages/u/Chat"));
+const UserChatDetail = lazyPage(() => import("@/pages/u/ChatDetail"));
+const UserNotifications = lazyPage(() => import("@/pages/u/Notifications"));
+const UserProfile = lazyPage(() => import("@/pages/u/Profile"));
+const UserSettings = lazyPage(() => import("@/pages/u/Settings"));
 
 // Trabajador
-const WorkerHome = lazy(() => import("@/pages/w/Home"));
-const WorkerJobs = lazy(() => import("@/pages/w/Jobs"));
-const WorkerJobDetail = lazy(() => import("@/pages/w/JobDetail"));
-const WorkerServices = lazy(() => import("@/pages/w/Services"));
-const WorkerNewService = lazy(() => import("@/pages/w/NewService"));
-const WorkerEditService = lazy(() => import("@/pages/w/EditService"));
-const WorkerProposals = lazy(() => import("@/pages/w/Proposals"));
-const WorkerAgreements = lazy(() => import("@/pages/w/Agreements"));
-const WorkerAgreementDetail = lazy(() => import("@/pages/w/AgreementDetail"));
-const WorkerAgreementReview = lazy(() => import("@/pages/w/AgreementReview"));
-const WorkerCobros = lazy(() => import("@/pages/w/Cobros"));
-const WorkerStats = lazy(() => import("@/pages/w/Stats"));
-const WorkerUserProfile = lazy(() => import("@/pages/w/UserProfile"));
-const WorkerAgenda = lazy(() => import("@/pages/w/Agenda"));
-const WorkerChat = lazy(() => import("@/pages/w/Chat"));
-const WorkerChatDetail = lazy(() => import("@/pages/w/ChatDetail"));
-const WorkerNotifications = lazy(() => import("@/pages/w/Notifications"));
-const WorkerProfile = lazy(() => import("@/pages/w/Profile"));
-const WorkerVerification = lazy(() => import("@/pages/w/Verification"));
-const WorkerPremium = lazy(() => import("@/pages/w/Premium"));
-const WorkerSettings = lazy(() => import("@/pages/w/Settings"));
+const WorkerHome = lazyPage(() => import("@/pages/w/Home"));
+const WorkerJobs = lazyPage(() => import("@/pages/w/Jobs"));
+const WorkerJobDetail = lazyPage(() => import("@/pages/w/JobDetail"));
+const WorkerServices = lazyPage(() => import("@/pages/w/Services"));
+const WorkerNewService = lazyPage(() => import("@/pages/w/NewService"));
+const WorkerEditService = lazyPage(() => import("@/pages/w/EditService"));
+const WorkerProposals = lazyPage(() => import("@/pages/w/Proposals"));
+const WorkerAgreements = lazyPage(() => import("@/pages/w/Agreements"));
+const WorkerAgreementDetail = lazyPage(() => import("@/pages/w/AgreementDetail"));
+const WorkerAgreementReview = lazyPage(() => import("@/pages/w/AgreementReview"));
+const WorkerCobros = lazyPage(() => import("@/pages/w/Cobros"));
+const WorkerStats = lazyPage(() => import("@/pages/w/Stats"));
+const WorkerUserProfile = lazyPage(() => import("@/pages/w/UserProfile"));
+const WorkerAgenda = lazyPage(() => import("@/pages/w/Agenda"));
+const WorkerChat = lazyPage(() => import("@/pages/w/Chat"));
+const WorkerChatDetail = lazyPage(() => import("@/pages/w/ChatDetail"));
+const WorkerNotifications = lazyPage(() => import("@/pages/w/Notifications"));
+const WorkerProfile = lazyPage(() => import("@/pages/w/Profile"));
+const WorkerVerification = lazyPage(() => import("@/pages/w/Verification"));
+const WorkerPremium = lazyPage(() => import("@/pages/w/Premium"));
+const WorkerSettings = lazyPage(() => import("@/pages/w/Settings"));
 
 export default function App() {
   const initialize = useAuth((s) => s.initialize);

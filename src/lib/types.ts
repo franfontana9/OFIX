@@ -206,6 +206,14 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   cancelado: "Cancelado",
 };
 
+// Estados de un trabajo que todavía está abierto. Vive acá y no repetido en
+// cada pantalla: cuando se sumó "en_camino" los filtros que lo listaban a mano
+// quedaron viejos y un trabajo en viaje desaparecía de "Activos".
+export const ACTIVE_JOB_STATUSES: JobStatus[] = ["agendado", "en_camino", "en_progreso"];
+export function isJobActive(status: JobStatus): boolean {
+  return ACTIVE_JOB_STATUSES.includes(status);
+}
+
 export interface Job {
   id: string;
   offerId: string;
