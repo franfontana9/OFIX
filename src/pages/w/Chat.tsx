@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { MessageCircle, Briefcase } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { UserAvatar } from "@/components/ofix/UserAvatar";
 import { useAuth } from "@/lib/auth";
@@ -45,7 +46,7 @@ export default function WorkerChat() {
             const other = otherId ? store.getUser(otherId) : null;
             const ctx = store.getChatContext(c.id);
             return (
-              <Card
+              <ClickableCard
                 key={c.id}
                 className="cursor-pointer transition-shadow hover:shadow-lg"
                 onClick={() => navigate(`/w/chat/${c.id}`)}
@@ -66,7 +67,7 @@ export default function WorkerChat() {
                     )}
                   </div>
                 </CardContent>
-              </Card>
+              </ClickableCard>
             );
           })}
         </div>

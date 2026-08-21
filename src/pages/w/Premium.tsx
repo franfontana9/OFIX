@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ofix/PageHeader";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 
 const BENEFITS = [
   { icon: Sparkles, title: "Perfil destacado", description: "Aparecés con una insignia Premium y sos priorizado en los resultados." },
@@ -23,7 +24,7 @@ export default function WorkerPremium() {
 
   const handleToggle = async () => {
     const next = !active;
-    store.setPremium(next);
+    if (run(() => store.setPremium(next)) === undefined) return;
     await updateUser({ premium: next });
     toast.success(next ? "¡Premium activado! Tu perfil ahora está destacado." : "Premium desactivado.");
   };

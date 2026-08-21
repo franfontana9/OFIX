@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { CheckCircle2, Briefcase, Star, Wallet, Search, Plus, Banknote, Handshake, ArrowRight, Siren, Send, TrendingUp, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { StatCard } from "@/components/ofix/StatCard";
 import { JobStatusBadge, UrgencyBadge } from "@/components/ofix/badges";
@@ -110,7 +111,7 @@ export default function WorkerHome() {
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {jobs.map((j) => (
-              <Card key={j.id} className="cursor-pointer transition-shadow hover:shadow-lg" onClick={() => navigate(`/w/agreements/${j.id}`)}>
+              <ClickableCard key={j.id} onClick={() => navigate(`/w/agreements/${j.id}`)}>
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <h3 className="font-semibold">{j.title}</h3>
@@ -121,7 +122,7 @@ export default function WorkerHome() {
                     <span className="font-semibold">${j.amount.toLocaleString()}</span>
                   </div>
                 </CardContent>
-              </Card>
+              </ClickableCard>
             ))}
           </div>
         </section>
@@ -132,7 +133,7 @@ export default function WorkerHome() {
 
 function QuickAction({ icon: Icon, label, hint, onClick }: { icon: typeof Plus; label: string; hint: string; onClick: () => void }) {
   return (
-    <Card className="cursor-pointer transition-shadow hover:shadow-lg" onClick={onClick}>
+    <ClickableCard onClick={onClick}>
       <CardContent className="flex items-center gap-3 p-4">
         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-light text-primary">
           <Icon className="h-5 w-5" />
@@ -142,6 +143,6 @@ function QuickAction({ icon: Icon, label, hint, onClick }: { icon: typeof Plus; 
           <p className="text-xs text-muted-foreground">{hint}</p>
         </div>
       </CardContent>
-    </Card>
+    </ClickableCard>
   );
 }

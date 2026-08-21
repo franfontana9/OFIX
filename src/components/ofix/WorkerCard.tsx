@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MapPin, Navigation, Heart, ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { UserAvatar } from "./UserAvatar";
 import { StarRating } from "./StarRating";
 import { VerificationBadge, LevelBadge } from "./badges";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 import { trustScore } from "@/lib/trust";
 import type { PublicUser } from "@/lib/types";
 
@@ -32,17 +34,15 @@ export function WorkerCard({
 
   const toggleFav = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const now = store.toggleFavorite(worker.id);
+    const now = run(() => store.toggleFavorite(worker.id));
+    // `false` es un resultado valido (se quito de favoritos); solo `undefined` es error.
+    if (now === undefined) return;
     setFav(now);
     if (now) setPop(true);
     toast.success(now ? "Agregado a favoritos" : "Quitado de favoritos");
   };
 
-  return (
-    <Card
-      onClick={onClick}
-      className={onClick ? "glow-hover cursor-pointer" : undefined}
-    >
+  const content = (
       <CardContent className={compact ? "p-3" : "p-4"}>
         <div className="flex items-start gap-3">
           <UserAvatar name={worker.name} photo={worker.photo} className={compact ? "h-11 w-11" : "h-14 w-14"} />
@@ -119,6 +119,15 @@ export function WorkerCard({
           </div>
         </div>
       </CardContent>
-    </Card>
+  );
+
+  // `onClick` es opcional: sin él la card es solo informativa y no tiene que
+  // anunciarse como accionable ni recibir foco. Con él va en ClickableCard para
+  // ser alcanzable con teclado — es la card principal de búsqueda, home y mapa.
+  if (!onClick) return <Card>{content}</Card>;
+  return (
+    <ClickableCard onClick={onClick} label={`Ver perfil de ${worker.name}`}>
+      {content}
+    </ClickableCard>
   );
 }

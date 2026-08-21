@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { UserAvatar } from "@/components/ofix/UserAvatar";
 import { StarRating } from "@/components/ofix/StarRating";
@@ -253,10 +254,7 @@ export default function UserProfile() {
           <p className="-mt-2 text-sm text-muted-foreground">Los que más contrataste, con trabajos completados.</p>
           <div className="grid gap-3 sm:grid-cols-3">
             {trusted.map(({ worker, count }) => (
-              <Card
-                key={worker!.id}
-                className="glow-hover cursor-pointer"
-                onClick={() => navigate(`/u/workers/${worker!.id}`)}
+              <ClickableCard key={worker!.id} onClick={() => navigate(`/u/workers/${worker!.id}`)}
               >
                 <CardContent className="flex items-center gap-3 p-4">
                   <UserAvatar name={worker!.name} photo={worker!.photo} className="h-11 w-11 shrink-0" />
@@ -270,7 +268,7 @@ export default function UserProfile() {
                   </div>
                   <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </CardContent>
-              </Card>
+              </ClickableCard>
             ))}
           </div>
         </section>
@@ -357,7 +355,7 @@ function QuickLink({
   onClick: () => void;
 }) {
   return (
-    <Card className="glow-hover cursor-pointer" onClick={onClick}>
+    <ClickableCard onClick={onClick}>
       <CardContent className="flex items-center justify-between gap-3 p-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
@@ -370,6 +368,6 @@ function QuickLink({
         </div>
         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </CardContent>
-    </Card>
+    </ClickableCard>
   );
 }

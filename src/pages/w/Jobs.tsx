@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, MapPin, Calendar, Inbox } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { PageHeader } from "@/components/ofix/PageHeader";
@@ -60,7 +61,7 @@ export default function WorkerJobs() {
           {offers.map((o) => {
             const client = store.getUser(o.authorId);
             return (
-              <Card
+              <ClickableCard
                 key={o.id}
                 onClick={() => navigate(`/w/jobs/${o.id}`)}
                 className={cn("cursor-pointer transition-shadow hover:shadow-lg", o.emergency && "border-destructive/50 bg-destructive/5")}
@@ -81,7 +82,7 @@ export default function WorkerJobs() {
                     <span className="font-semibold">${o.budget.toLocaleString()}</span>
                   </div>
                 </CardContent>
-              </Card>
+              </ClickableCard>
             );
           })}
         </div>

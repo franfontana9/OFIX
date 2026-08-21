@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Briefcase, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { EmptyState } from "@/components/ofix/EmptyState";
@@ -68,7 +69,7 @@ function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
   const client = store.getUser(job.clientId);
   const dateLabel = (job.status as JobStatus) === "completado" && job.completedAt ? job.completedAt : job.scheduledAt || job.createdAt;
   return (
-    <Card className="cursor-pointer transition-shadow hover:shadow-lg" onClick={onClick}>
+    <ClickableCard onClick={onClick}>
       <CardContent className="p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
           <h3 className="font-semibold">{job.title}</h3>
@@ -83,6 +84,6 @@ function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
           <span className="font-semibold">${job.amount.toLocaleString()}</span>
         </div>
       </CardContent>
-    </Card>
+    </ClickableCard>
   );
 }

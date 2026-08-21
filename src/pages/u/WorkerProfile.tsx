@@ -11,6 +11,7 @@ import { VerificationBadge, LevelBadge } from "@/components/ofix/badges";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 
 export default function UserWorkerProfile() {
   const navigate = useNavigate();
@@ -44,14 +45,16 @@ export default function UserWorkerProfile() {
   const v = worker.verification;
 
   const toggleFav = () => {
-    const now = store.toggleFavorite(worker.id);
+    const now = run(() => store.toggleFavorite(worker.id));
+    if (now === undefined) return;
     setFav(now);
     toast.success(now ? "Agregado a favoritos" : "Quitado de favoritos");
   };
 
   const sendMessage = () => {
     if (!user) return;
-    const chat = store.createChat(user.id, worker.id);
+    const chat = run(() => store.createChat(user.id, worker.id));
+    if (!chat) return;
     navigate(`/u/chat/${chat.id}`);
   };
 

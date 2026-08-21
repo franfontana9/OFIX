@@ -4,10 +4,12 @@ import { Bell, MessageCircle, DollarSign, Calendar, FileText, Siren, CheckCheck,
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { EmptyState } from "@/components/ofix/EmptyState";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 import type { Notification, NotificationType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -79,12 +81,12 @@ export default function UserNotifications() {
 
   const markAll = () => {
     if (!user) return;
-    store.markAllNotificationsRead(user.id);
+    run(() => store.markAllNotificationsRead(user.id));
     rerender();
   };
 
   const open = (id: string, link?: string) => {
-    store.markNotificationRead(id);
+    run(() => store.markNotificationRead(id));
     if (link) navigate(link);
     else rerender();
   };
@@ -141,7 +143,7 @@ export default function UserNotifications() {
               {grouped[g].map((n) => {
                 const Icon = ICONS[n.type];
                 return (
-                  <Card
+                  <ClickableCard
                     key={n.id}
                     className="cursor-pointer transition-shadow hover:shadow-lg"
                     onClick={() => open(n.id, n.link)}
@@ -161,7 +163,7 @@ export default function UserNotifications() {
                         </p>
                       </div>
                     </CardContent>
-                  </Card>
+                  </ClickableCard>
                 );
               })}
             </section>

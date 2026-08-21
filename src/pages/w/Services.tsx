@@ -9,6 +9,7 @@ import { ServiceThumb } from "@/components/ofix/ServiceThumb";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 import type { Service } from "@/lib/types";
 
 export default function WorkerServices() {
@@ -22,13 +23,13 @@ export default function WorkerServices() {
   const withoutUrgency = services.filter((s) => !s.withUrgency);
 
   const toggle = (s: Service) => {
-    store.updateService(s.id, { active: !s.active });
+    if (run(() => store.updateService(s.id, { active: !s.active })) === undefined) return;
     toast.success(s.active ? "Servicio desactivado" : "Servicio activado");
     rerender();
   };
 
   const remove = (s: Service) => {
-    store.deleteService(s.id);
+    if (run(() => store.deleteService(s.id)) === undefined) return;
     toast.success("Servicio eliminado");
     rerender();
   };

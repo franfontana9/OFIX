@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 import { CATEGORIES } from "@/lib/types";
 
 // Botón SOS: crea una solicitud inmediata y notifica trabajadores cercanos.
@@ -31,12 +32,16 @@ export function EmergencyButton({ className, full }: { className?: string; full?
   const handleSubmit = () => {
     if (!category) return toast.error("Elegí una categoría");
     if (!location) return toast.error("Indicá tu ubicación");
-    const { offer, notified } = store.createEmergency({
-      category,
-      description,
-      location,
-      geo: user?.geo,
-    });
+    const result = run(() =>
+      store.createEmergency({
+        category,
+        description,
+        location,
+        geo: user?.geo,
+      }),
+    );
+    if (!result) return;
+    const { offer, notified } = result;
     toast.success(`Emergencia enviada. Avisamos a ${notified} profesional(es) cercano(s).`);
     setOpen(false);
     navigate(`/u/emergency/${offer.id}`);

@@ -1,6 +1,7 @@
-import { useRef } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { fileToResizedDataUrl } from "@/lib/image";
 import { cn } from "@/lib/utils";
 
 // Sube fotos (se guardan como data URLs base64 en localStorage). Máx configurable.
@@ -16,18 +17,36 @@ export function ImageUploader({
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleFiles = (files: FileList | null) => {
+  // Las fotos se guardan como data URL en localStorage, así que hay que
+  // redimensionarlas: sin esto, tres fotos de celular sin tocar llenaban la
+  // cuota de ~5 MB del navegador y a partir de ahí fallaba TODA la escritura.
+  // Es el mismo tratamiento que ya recibían los adjuntos del chat.
+  const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     const remaining = max - images.length;
+    if (remaining <= 0) {
+      toast.error(`Máximo ${max} fotos`);
+      return;
+    }
     const toRead = Array.from(files).slice(0, remaining);
-    if (files.length > remaining) toast.error(`Máximo ${max} fotos`);
-    toRead.forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
-      const reader = new FileReader();
-      reader.onload = () => onChange([...images, reader.result as string]);
-      reader.readAsDataURL(file);
-    });
+    if (files.length > remaining) toast.error(`Se agregan ${remaining}: el máximo es ${max} fotos`);
+
+    setBusy(true);
+    // De a una y acumulando sobre el array anterior: con forEach + onload
+    // paralelos, cada callback partía del mismo `images` y se pisaban entre sí,
+    // así que al elegir varias fotos juntas solo entraba la última.
+    let next = [...images];
+    for (const file of toRead) {
+      try {
+        next = [...next, await fileToResizedDataUrl(file)];
+      } catch (err) {
+        toast.error((err as Error).message || "No se pudo procesar la imagen");
+      }
+    }
+    onChange(next);
+    setBusy(false);
   };
 
   return (
@@ -49,13 +68,14 @@ export function ImageUploader({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          disabled={busy}
+          className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-60"
         >
-          <ImagePlus className="h-5 w-5" />
-          <span className="text-[10px]">Agregar</span>
+          {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+          <span className="text-[10px]">{busy ? "Procesando" : "Agregar"}</span>
         </button>
       )}
-      <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => handleFiles(e.target.files)} />
+      <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => { void handleFiles(e.target.files); e.target.value = ""; }} />
     </div>
   );
 }

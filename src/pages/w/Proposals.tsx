@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Inbox } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { ProposalStatusBadge } from "@/components/ofix/badges";
@@ -52,7 +53,7 @@ export default function WorkerProposals() {
           {filtered.map((p) => {
             const offer = store.getOffer(p.offerId);
             return (
-              <Card key={p.id} className="cursor-pointer transition-shadow hover:shadow-lg" onClick={() => navigate(`/w/jobs/${p.offerId}`)}>
+              <ClickableCard key={p.id} onClick={() => navigate(`/w/jobs/${p.offerId}`)}>
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <div>
@@ -69,7 +70,7 @@ export default function WorkerProposals() {
                     <span className="font-semibold">${p.price.toLocaleString()}</span>
                   </div>
                 </CardContent>
-              </Card>
+              </ClickableCard>
             );
           })}
         </div>

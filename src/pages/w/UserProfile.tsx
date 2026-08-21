@@ -7,6 +7,7 @@ import { UserAvatar } from "@/components/ofix/UserAvatar";
 import { StarRating } from "@/components/ofix/StarRating";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 import { CLIENT_TYPE_LABELS } from "@/lib/types";
 
 export default function WorkerUserProfile() {
@@ -28,7 +29,8 @@ export default function WorkerUserProfile() {
   const isPyme = client.clientType === "pyme_gastronomica";
 
   const openChat = () => {
-    const chat = store.createChat(user!.id, client.id);
+    const chat = run(() => store.createChat(user!.id, client.id));
+    if (!chat) return;
     navigate(`/w/chat/${chat.id}`);
   };
 

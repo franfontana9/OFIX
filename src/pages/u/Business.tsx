@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Siren, CalendarClock, FileText, ClipboardList, Briefcase, ArrowRight, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { StatCard } from "@/components/ofix/StatCard";
 import { useAuth } from "@/lib/auth";
@@ -175,7 +176,7 @@ export default function UserBusiness() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Gestión</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Card className="cursor-pointer transition-shadow hover:shadow-lg" onClick={() => navigate("/u/requests")}>
+          <ClickableCard onClick={() => navigate("/u/requests")}>
             <CardContent className="flex items-center justify-between gap-3 p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-light text-primary">
@@ -188,8 +189,8 @@ export default function UserBusiness() {
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
             </CardContent>
-          </Card>
-          <Card className="cursor-pointer transition-shadow hover:shadow-lg" onClick={() => navigate("/u/jobs")}>
+          </ClickableCard>
+          <ClickableCard onClick={() => navigate("/u/jobs")}>
             <CardContent className="flex items-center justify-between gap-3 p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-success-light text-success">
@@ -202,7 +203,7 @@ export default function UserBusiness() {
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
             </CardContent>
-          </Card>
+          </ClickableCard>
         </div>
       </section>
     </div>

@@ -7,6 +7,7 @@ import { WorkerCard } from "@/components/ofix/WorkerCard";
 import { RealMap, type MapPoint } from "@/components/ofix/RealMap";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 
 export default function UserEmergency() {
   const navigate = useNavigate();
@@ -44,7 +45,8 @@ export default function UserEmergency() {
     }));
 
   const contact = (workerId: string) => {
-    const chat = store.createChat(user!.id, workerId);
+    const chat = run(() => store.createChat(user!.id, workerId));
+    if (!chat) return;
     navigate(`/u/chat/${chat.id}`);
   };
 

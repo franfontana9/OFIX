@@ -6,6 +6,7 @@ import { VerificationBadge } from "@/components/ofix/badges";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 import type { Verification } from "@/lib/types";
 
 type CheckKey = keyof Verification;
@@ -41,7 +42,8 @@ export default function WorkerVerification() {
   const verification = user.verification || { identity: false, background: false, license: false };
 
   const handleVerify = async (key: CheckKey, label: string) => {
-    const updated = store.verifyWorker({ [key]: true } as Partial<Verification>);
+    const updated = run(() => store.verifyWorker({ [key]: true } as Partial<Verification>));
+    if (!updated) return;
     await updateUser({ verification: updated.verification, verified: updated.verified });
     toast.success(`${label} ✓`);
     if (updated.verified && !user.verified) {

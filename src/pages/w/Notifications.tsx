@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { MessageCircle, DollarSign, Calendar, FileText, Siren, Bell, Navigation, ShieldAlert, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { EmptyState } from "@/components/ofix/EmptyState";
 import { useAuth } from "@/lib/auth";
 import { store } from "@/lib/store";
+import { run } from "@/lib/run";
 import type { Notification, NotificationType } from "@/lib/types";
 
 const ICONS: Record<NotificationType, LucideIcon> = {
@@ -69,13 +71,13 @@ export default function WorkerNotifications() {
   if (!user) return null;
 
   const handleClick = (id: string, link?: string) => {
-    store.markNotificationRead(id);
+    run(() => store.markNotificationRead(id));
     tick();
     if (link) navigate(link);
   };
 
   const handleReadAll = () => {
-    store.markAllNotificationsRead(user.id);
+    run(() => store.markAllNotificationsRead(user.id));
     tick();
   };
 
@@ -130,7 +132,7 @@ export default function WorkerNotifications() {
               {grouped[g].map((n) => {
                 const Icon = ICONS[n.type] || Bell;
                 return (
-                  <Card
+                  <ClickableCard
                     key={n.id}
                     className={
                       "cursor-pointer transition-shadow hover:shadow-lg " +
@@ -151,7 +153,7 @@ export default function WorkerNotifications() {
                         <p className="mt-1 text-xs text-muted-foreground/80">{formatDate(n.createdAt)}</p>
                       </div>
                     </CardContent>
-                  </Card>
+                  </ClickableCard>
                 );
               })}
             </section>

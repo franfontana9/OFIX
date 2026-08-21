@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Search, ClipboardList, Siren, ArrowRight, Inbox, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { CategoryTile } from "@/components/ofix/CategoryIcon";
 import { WorkerCard } from "@/components/ofix/WorkerCard";
@@ -123,7 +124,7 @@ export default function UserHome() {
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {requests.slice(0, 4).map((o) => (
-              <Card key={o.id} className="cursor-pointer transition-shadow hover:shadow-lg" onClick={() => navigate(`/u/requests/${o.id}`)}>
+              <ClickableCard key={o.id} onClick={() => navigate(`/u/requests/${o.id}`)}>
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <h3 className="font-semibold">{o.title}</h3>
@@ -135,7 +136,7 @@ export default function UserHome() {
                     <span className="font-semibold">${o.budget.toLocaleString()}</span>
                   </div>
                 </CardContent>
-              </Card>
+              </ClickableCard>
             ))}
           </div>
         </section>
@@ -146,7 +147,7 @@ export default function UserHome() {
 
 function QuickAction({ icon: Icon, label, hint, onClick }: { icon: typeof Plus; label: string; hint: string; onClick: () => void }) {
   return (
-    <Card className="cursor-pointer transition-shadow hover:shadow-lg" onClick={onClick}>
+    <ClickableCard onClick={onClick}>
       <CardContent className="flex items-center gap-3 p-4">
         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-light text-primary">
           <Icon className="h-5 w-5" />
@@ -156,6 +157,6 @@ function QuickAction({ icon: Icon, label, hint, onClick }: { icon: typeof Plus; 
           <p className="text-xs text-muted-foreground">{hint}</p>
         </div>
       </CardContent>
-    </Card>
+    </ClickableCard>
   );
 }

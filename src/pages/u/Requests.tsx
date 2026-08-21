@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, ClipboardList, MessageSquare, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { OfferStatusBadge, UrgencyBadge } from "@/components/ofix/badges";
@@ -63,7 +64,7 @@ export default function UserRequests() {
 function RequestCard({ offer, onClick }: { offer: Offer; onClick: () => void }) {
   const proposals = store.getProposals({ offerId: offer.id }).length;
   return (
-    <Card className="cursor-pointer transition-shadow hover:shadow-lg" onClick={onClick}>
+    <ClickableCard onClick={onClick}>
       <CardContent className="p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
           <h3 className="font-semibold">{offer.title}</h3>
@@ -84,7 +85,7 @@ function RequestCard({ offer, onClick }: { offer: Offer; onClick: () => void }) 
           </span>
         </div>
       </CardContent>
-    </Card>
+    </ClickableCard>
   );
 }
 

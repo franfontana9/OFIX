@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MapPin, Navigation, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ClickableCard } from "@/components/ofix/ClickableCard";
 import { PageHeader } from "@/components/ofix/PageHeader";
 import { RealMap, type MapPoint } from "@/components/ofix/RealMap";
 import { UserAvatar } from "@/components/ofix/UserAvatar";
@@ -201,7 +202,7 @@ export default function UserMapView() {
         <h2 className="text-lg font-semibold">Más cercanos</h2>
         <div className="grid gap-3 md:grid-cols-2">
           {workers.slice(0, 8).map(({ worker, distance, availability }) => (
-            <Card
+            <ClickableCard
               key={worker.id}
               className={cn("glow-hover cursor-pointer", selected === worker.id && "border-primary")}
               onClick={() => setSelected(worker.id)}
@@ -218,7 +219,7 @@ export default function UserMapView() {
                   <StarRating value={worker.rating || 0} size={12} showValue />
                 </div>
               </CardContent>
-            </Card>
+            </ClickableCard>
           ))}
         </div>
       </section>

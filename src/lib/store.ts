@@ -70,13 +70,19 @@ const TOKEN_KEY = "ofix-token";
 // Bump cuando cambia el esquema de datos: invalida el localStorage viejo y re-seedea.
 const DATA_VERSION = 8;
 
-// Foto real y temática (Creative Commons) por palabra clave, para el seed.
-function photo(keyword: string, lock: number, w = 480, h = 360): string {
-  return `https://loremflickr.com/${w}/${h}/${encodeURIComponent(keyword)}?lock=${lock}`;
+// Las imágenes de demo se sirven desde el propio deploy (`public/demo/`).
+// Antes salían en vivo de loremflickr.com y randomuser.me, lo que dejaba la app
+// dependiendo de dos servicios de terceros: con la red lenta o esos servicios
+// caídos, la demo se veía vacía. Ahora cargan al instante y funcionan offline.
+//
+// El `keyword` ya no se usa para resolver la URL —el archivo se nombra por el
+// lock, que es único— pero se conserva en las llamadas porque documenta qué
+// muestra cada foto.
+function photo(_keyword: string, lock: number, _w = 480, _h = 360): string {
+  return `/demo/photos/${lock}.jpg`;
 }
-// Avatar real de persona (randomuser) — cae a iniciales si falla.
 function avatar(gender: "men" | "women", n: number): string {
-  return `https://randomuser.me/api/portraits/${gender}/${n}.jpg`;
+  return `/demo/avatars/${gender}-${n}.jpg`;
 }
 
 const FULL_WEEK: WorkSchedule = { days: [1, 2, 3, 4, 5, 6], from: "08:00", to: "20:00" };
