@@ -6,35 +6,51 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageFallback } from "@/components/PageFallback";
 import { useAuth } from "@/lib/auth";
 
-const CHUNK_RELOAD_KEY = "ofix-chunk-reload";
+const CHUNK_RELOAD_KEY = "ofix-chunk-reload-at";
+// Ventana mínima entre dos recargas automáticas.
+const CHUNK_RELOAD_COOLDOWN_MS = 30_000;
 
 /**
  * `lazy` con recuperación ante un chunk que no carga.
  *
- * Con code-splitting, los nombres de los chunks llevan hash. Si la app se
- * redeploya mientras alguien tiene una pestaña abierta, ese `index.html` viejo
- * pide un chunk que ya no existe y el `import()` falla: la pantalla queda en
- * blanco y ni el ErrorBoundary lo ve, porque el error vive en una promesa
- * adentro de Suspense.
+ * Con code-splitting los chunks llevan hash. Si la app se redeploya con una
+ * pestaña abierta, ese `index.html` viejo pide un chunk que ya no existe: el
+ * `import()` falla, y como el error vive en una promesa adentro de Suspense, la
+ * pantalla queda en blanco sin que el ErrorBoundary lo vea. Ante ese fallo se
+ * recarga para tomar el index.html nuevo.
  *
- * Ante ese fallo se recarga la página UNA sola vez (la bandera va en
- * sessionStorage) para tomar el index.html nuevo. Si vuelve a fallar después de
- * recargar, el error se propaga de verdad en vez de quedar en un loop.
+ * La guarda es POR TIEMPO y no por una bandera de "ya recargué una vez". La
+ * versión anterior limpiaba la bandera en cada carga exitosa, así que un chunk
+ * bueno habilitaba de nuevo la recarga del que fallaba y la pestaña entraba en
+ * un ciclo de recargas: desde afuera se ve congelada. Con el timestamp, dos
+ * recargas nunca pueden pasar dentro de la misma ventana, así que el ciclo se
+ * corta solo aunque el chunk siga faltando.
+ *
+ * El acceso a sessionStorage va protegido: en modo privado puede tirar, y si
+ * tiraba, la guarda no se guardaba nunca y volvíamos al mismo ciclo.
  */
 function lazyPage<T extends ComponentType<unknown>>(factory: () => Promise<{ default: T }>) {
   return lazy(() =>
-    factory()
-      .then((mod) => {
-        sessionStorage.removeItem(CHUNK_RELOAD_KEY);
-        return mod;
-      })
-      .catch((err) => {
-        if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
-          sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
-          window.location.reload();
+    factory().catch((err) => {
+      let last = 0;
+      try {
+        last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || 0);
+      } catch {
+        /* sessionStorage no disponible: se trata como "nunca recargué" */
+      }
+      if (Date.now() - last > CHUNK_RELOAD_COOLDOWN_MS) {
+        try {
+          sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+        } catch {
+          /* sin storage no se puede evitar un segundo intento; se acepta */
         }
-        throw err;
-      }),
+        window.location.reload();
+      }
+      // Si estamos dentro de la ventana, el error se propaga de verdad y lo
+      // toma el ErrorBoundary, que muestra un mensaje en vez de una pantalla
+      // muda.
+      throw err;
+    }),
   );
 }
 

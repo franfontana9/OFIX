@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2, User, Wrench, ShieldCheck, FileCheck, ScrollText, Home, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -46,10 +46,8 @@ export default function Register() {
   const [vBackground, setVBackground] = useState(false);
   const [vLicense, setVLicense] = useState(false);
 
-  if (user) {
-    navigate(user.role === "worker" ? "/w/home" : "/u/home");
-    return null;
-  }
+  // Mismo criterio que Login: redirect declarativo, nunca navigate() en render.
+  if (user) return <Navigate to={user.role === "worker" ? "/w/home" : "/u/home"} replace />;
 
   const steps = role === "worker" ? WORKER_STEPS : USER_STEPS;
   const lastStep = steps.length - 1;

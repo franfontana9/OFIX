@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,10 +40,10 @@ export default function Login() {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  if (user) {
-    navigate(user.role === "user" ? "/u/home" : "/w/home");
-    return null;
-  }
+  // Con sesión activa se sale de acá con <Navigate replace>. Llamar navigate()
+  // en el cuerpo del componente es un efecto durante el render: React lo puede
+  // reentrar y, con la guarda de ruta redirigiendo de vuelta, quedaba en loop.
+  if (user) return <Navigate to={user.role === "worker" ? "/w/home" : "/u/home"} replace />;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
