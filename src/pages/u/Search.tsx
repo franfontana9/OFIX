@@ -99,7 +99,8 @@ export default function UserSearch() {
   const [minRating, setMinRating] = useState<string>(ALL);
   const [complexity, setComplexity] = useState<Complexity | typeof ALL>(ALL);
   const [onlyVerified, setOnlyVerified] = useState(false);
-  const [onlyAvailableNow, setOnlyAvailableNow] = useState(false);
+  // "Ver quiénes" del home entra con ?ahora=1 y espera el filtro ya aplicado.
+  const [onlyAvailableNow, setOnlyAvailableNow] = useState(params.get("ahora") === "1");
   const [onlyLicensed, setOnlyLicensed] = useState(false);
   const [onCallOnly, setOnCallOnly] = useState(false);
   const [sort, setSort] = useState<Sort>("rating");
