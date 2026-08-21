@@ -8,6 +8,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 
+const DEMO_PASSWORD = "password123";
+
+// Todos los usuarios del seed, agrupados por rol y tipo de cliente.
+const DEMO_GROUPS: { label: string; users: { name: string; email: string; detail: string }[] }[] = [
+  {
+    label: "Clientes",
+    users: [
+      { name: "María García", email: "maria@example.com", detail: "Hogar · Palermo" },
+      { name: "Carlos López", email: "carlos@example.com", detail: "Hogar · Belgrano" },
+      { name: "Bodegón La Esquina", email: "bodegon@example.com", detail: "PyME · San Telmo" },
+      { name: "Administración Rivadavia", email: "consorcios@example.com", detail: "Consorcios · Caballito" },
+    ],
+  },
+  {
+    label: "Profesionales",
+    users: [
+      { name: "Juan Pérez", email: "juan@example.com", detail: "Plomería · Gold" },
+      { name: "Ana Rodríguez", email: "ana@example.com", detail: "Electricidad · Silver" },
+      { name: "Diego Fernández", email: "diego@example.com", detail: "Cerrajería · 24hs" },
+      { name: "Lucía Martínez", email: "lucia@example.com", detail: "Pintura · Bronze" },
+    ],
+  },
+];
+
 export default function Login() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
@@ -34,6 +58,13 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Carga un usuario de prueba en el formulario sin entrar todavía: se ve qué
+  // credenciales se usan antes de apretar "Iniciar sesión".
+  const fillDemo = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword(DEMO_PASSWORD);
   };
 
   const onSocial = (provider: string) => {
@@ -126,11 +157,42 @@ export default function Login() {
             </p>
           </div>
 
-          <div className="mt-4 rounded-lg bg-muted p-4 text-sm">
-            <p className="mb-2 font-semibold">Usuarios de prueba:</p>
-            <p className="text-muted-foreground">Usuario: maria@example.com</p>
-            <p className="text-muted-foreground">Trabajador: juan@example.com</p>
-            <p className="mt-1 text-muted-foreground">Contraseña: password123</p>
+          {/* Todos los usuarios del seed, con un clic para entrar directo. */}
+          <div className="mt-4 rounded-lg bg-muted p-4">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <p className="text-sm font-semibold">Usuarios de prueba</p>
+              <p className="text-xs text-muted-foreground">
+                Contraseña: <span className="font-mono">password123</span>
+              </p>
+            </div>
+            <div className="space-y-3">
+              {DEMO_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.label}
+                  </p>
+                  <div className="space-y-1">
+                    {group.users.map((u) => (
+                      <button
+                        key={u.email}
+                        type="button"
+                        onClick={() => fillDemo(u.email)}
+                        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-background"
+                      >
+                        <span className="min-w-0">
+                          <span className="font-medium">{u.name}</span>
+                          <span className="block truncate text-muted-foreground">{u.email}</span>
+                        </span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">{u.detail}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Tocá cualquiera para cargar sus datos en el formulario.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -36,7 +36,6 @@ import {
   type Geo,
   type Job,
   type JobTimelineEvent,
-  type MarketplaceMetrics,
   type Message,
   type Notification,
   type NotificationType,
@@ -64,13 +63,12 @@ import {
   type WarrantyClaim,
   type WorkerLevel,
   type WorkSchedule,
-  type ZoneLiquidity,
 } from "./types";
 
 const DATA_KEY = "ofix-data";
 const TOKEN_KEY = "ofix-token";
 // Bump cuando cambia el esquema de datos: invalida el localStorage viejo y re-seedea.
-const DATA_VERSION = 6;
+const DATA_VERSION = 7;
 
 // Foto real y temática (Creative Commons) por palabra clave, para el seed.
 function photo(keyword: string, lock: number, w = 480, h = 360): string {
@@ -204,6 +202,20 @@ class DataStore {
       { id: "w2", name: "Ana Rodríguez", email: "ana@example.com", password: "password123", phone: "+54 11 4567-8901", role: "worker", trade: "Electricidad", trades: ["Electricidad", "Aire acondicionado"], coverageZone: "Belgrano, Núñez, Colegiales", hourlyRate: 4000, bio: "Electricista matriculada. Instalaciones, tableros y reparaciones. Presupuesto sin cargo.", verified: true, verification: fullVerif, level: "silver", rating: 4.9, reviewCount: 18, jobsDone: 21, premium: false, available: true, workSchedule: WEEKDAYS, onCallWeekends: false, vehicle: "Partner gris — AC 456 EF", invitesReceived: 22, invitesAnswered: 19, responseMinutesTotal: 240, zone: "Belgrano, CABA", geo: { lat: -34.5610, lng: -58.4560 }, photo: avatar("women", 44), createdAt: daysAgo(220), updatedAt: t },
       { id: "w3", name: "Diego Fernández", email: "diego@example.com", password: "password123", phone: "+54 11 6789-0123", role: "worker", trade: "Cerrajería", trades: ["Cerrajería"], coverageZone: "CABA (toda la ciudad)", hourlyRate: 3000, bio: "Cerrajero 24hs. Aperturas, cambio de cerraduras y seguridad. Respuesta rápida.", verified: true, verification: { identity: true, background: true, license: false }, level: "silver", rating: 4.6, reviewCount: 11, jobsDone: 15, premium: false, available: true, workSchedule: ALL_DAY, onCallWeekends: true, onCallSurcharge: 25, vehicle: "Moto Honda — 123 ABC", invitesReceived: 18, invitesAnswered: 17, responseMinutesTotal: 90, zone: "Almagro, CABA", geo: { lat: -34.6100, lng: -58.4200 }, photo: avatar("men", 76), createdAt: daysAgo(150), updatedAt: t },
       { id: "w4", name: "Lucía Martínez", email: "lucia@example.com", password: "password123", phone: "+54 11 7890-1234", role: "worker", trade: "Pintura", trades: ["Pintura", "Mantenimiento"], coverageZone: "Caballito, Flores, Almagro", hourlyRate: 2800, bio: "Pintora profesional. Interiores y exteriores, trabajos prolijos y en fecha.", verified: false, verification: { identity: true, background: false, license: false }, level: "bronze", rating: 4.3, reviewCount: 4, jobsDone: 6, premium: false, available: false, workSchedule: WEEKDAYS, onCallWeekends: false, invitesReceived: 12, invitesAnswered: 6, responseMinutesTotal: 300, zone: "Caballito, CABA", geo: { lat: -34.6190, lng: -58.4400 }, photo: avatar("women", 65), createdAt: daysAgo(60), updatedAt: t },
+
+      // ── Resto del padrón: cubre los 10 oficios y reparte pines por CABA ──
+      { id: "w5", name: "Roberto Sosa", email: "roberto@example.com", password: "password123", phone: "+54 11 3111-2233", role: "worker", trade: "Gas", trades: ["Gas", "Plomería"], coverageZone: "Villa Urquiza, Saavedra, Núñez", hourlyRate: 4200, bio: "Gasista matriculado ENARGAS. Instalaciones, artefactos y certificaciones.", verified: true, verification: fullVerif, level: "gold", rating: 4.9, reviewCount: 41, jobsDone: 53, premium: true, available: true, workSchedule: FULL_WEEK, onCallWeekends: true, onCallSurcharge: 20, vehicle: "Berlingo blanca — AD 512 KJ", invitesReceived: 48, invitesAnswered: 45, responseMinutesTotal: 300, zone: "Villa Urquiza, CABA", geo: { lat: -34.5720, lng: -58.4880 }, photo: avatar("men", 12), createdAt: daysAgo(400), updatedAt: t },
+      { id: "w6", name: "Marina Quiroga", email: "marina@example.com", password: "password123", phone: "+54 11 3222-3344", role: "worker", trade: "Aire acondicionado", trades: ["Aire acondicionado", "Electricidad"], coverageZone: "Recoleta, Retiro, Palermo", hourlyRate: 4800, bio: "Técnica en refrigeración. Instalación, carga de gas y service de split.", verified: true, verification: fullVerif, level: "silver", rating: 4.7, reviewCount: 23, jobsDone: 26, premium: false, available: true, workSchedule: FULL_WEEK, onCallWeekends: true, onCallSurcharge: 25, vehicle: "Kangoo gris — AE 220 LM", invitesReceived: 28, invitesAnswered: 24, responseMinutesTotal: 190, zone: "Recoleta, CABA", geo: { lat: -34.5880, lng: -58.3960 }, photo: avatar("women", 26), createdAt: daysAgo(280), updatedAt: t },
+      { id: "w7", name: "Héctor Benítez", email: "hector@example.com", password: "password123", phone: "+54 11 3333-4455", role: "worker", trade: "Carpintería", trades: ["Carpintería", "Mantenimiento"], coverageZone: "Villa Devoto, Villa del Parque, Floresta", hourlyRate: 3300, bio: "Carpintero de obra y muebles a medida. Placares, puertas y reparaciones.", verified: true, verification: { identity: true, background: true, license: false }, level: "silver", rating: 4.8, reviewCount: 17, jobsDone: 19, premium: false, available: true, workSchedule: WEEKDAYS, onCallWeekends: false, vehicle: "Utilitario Fiorino", invitesReceived: 20, invitesAnswered: 16, responseMinutesTotal: 260, zone: "Villa Devoto, CABA", geo: { lat: -34.5990, lng: -58.5130 }, photo: avatar("men", 55), createdAt: daysAgo(200), updatedAt: t },
+      { id: "w8", name: "Silvia Ramos", email: "silvia@example.com", password: "password123", phone: "+54 11 3444-5566", role: "worker", trade: "Limpieza", trades: ["Limpieza"], coverageZone: "Almagro, Boedo, San Cristóbal", hourlyRate: 2200, bio: "Limpieza profunda de casas y locales. Fin de obra y mantenimiento semanal.", verified: true, verification: { identity: true, background: true, license: false }, level: "gold", rating: 4.9, reviewCount: 58, jobsDone: 71, premium: true, available: true, workSchedule: FULL_WEEK, onCallWeekends: false, invitesReceived: 62, invitesAnswered: 58, responseMinutesTotal: 240, zone: "Almagro, CABA", geo: { lat: -34.6080, lng: -58.4180 }, photo: avatar("women", 12), createdAt: daysAgo(350), updatedAt: t },
+      { id: "w9", name: "Pablo Ferreyra", email: "pablo@example.com", password: "password123", phone: "+54 11 3555-6677", role: "worker", trade: "Jardinería", trades: ["Jardinería", "Mantenimiento"], coverageZone: "Belgrano, Núñez, Colegiales", hourlyRate: 2600, bio: "Parquización, poda y mantenimiento de jardines y terrazas verdes.", verified: false, verification: { identity: true, background: false, license: false }, level: "bronze", rating: 4.4, reviewCount: 8, jobsDone: 9, premium: false, available: true, workSchedule: WEEKDAYS, onCallWeekends: false, invitesReceived: 14, invitesAnswered: 9, responseMinutesTotal: 320, zone: "Colegiales, CABA", geo: { lat: -34.5760, lng: -58.4490 }, photo: avatar("men", 22), createdAt: daysAgo(90), updatedAt: t },
+      { id: "w10", name: "Verónica Ledesma", email: "veronica@example.com", password: "password123", phone: "+54 11 3666-7788", role: "worker", trade: "Electricidad", trades: ["Electricidad"], coverageZone: "Caballito, Villa Crespo, Almagro", hourlyRate: 3900, bio: "Electricista matriculada. Tableros, puesta a tierra y certificados.", verified: true, verification: fullVerif, level: "silver", rating: 4.8, reviewCount: 21, jobsDone: 24, premium: false, available: true, workSchedule: FULL_WEEK, onCallWeekends: true, onCallSurcharge: 20, vehicle: "Moto Rouser", invitesReceived: 26, invitesAnswered: 23, responseMinutesTotal: 160, zone: "Villa Crespo, CABA", geo: { lat: -34.5990, lng: -58.4380 }, photo: avatar("women", 33), createdAt: daysAgo(240), updatedAt: t },
+      { id: "w11", name: "Gustavo Ibarra", email: "gustavo@example.com", password: "password123", phone: "+54 11 3777-8899", role: "worker", trade: "Plomería", trades: ["Plomería", "Mantenimiento"], coverageZone: "San Telmo, La Boca, Barracas", hourlyRate: 3100, bio: "Plomero con 15 años en el barrio. Destapaciones y cambio de cañerías.", verified: true, verification: { identity: true, background: true, license: false }, level: "gold", rating: 4.6, reviewCount: 36, jobsDone: 44, premium: false, available: true, workSchedule: FULL_WEEK, onCallWeekends: true, onCallSurcharge: 15, vehicle: "Camioneta Partner", invitesReceived: 40, invitesAnswered: 34, responseMinutesTotal: 380, zone: "San Telmo, CABA", geo: { lat: -34.6230, lng: -58.3700 }, photo: avatar("men", 64), createdAt: daysAgo(320), updatedAt: t },
+      { id: "w12", name: "Natalia Cabrera", email: "natalia@example.com", password: "password123", phone: "+54 11 3888-9900", role: "worker", trade: "Pintura", trades: ["Pintura"], coverageZone: "Palermo, Recoleta, Belgrano", hourlyRate: 3400, bio: "Pintura decorativa y microcemento. Acabados finos para interiores.", verified: true, verification: { identity: true, background: true, license: false }, level: "silver", rating: 4.9, reviewCount: 14, jobsDone: 16, premium: true, available: false, workSchedule: WEEKDAYS, onCallWeekends: false, invitesReceived: 18, invitesAnswered: 15, responseMinutesTotal: 210, zone: "Palermo, CABA", geo: { lat: -34.5810, lng: -58.4250 }, photo: avatar("women", 50), createdAt: daysAgo(160), updatedAt: t },
+      { id: "w13", name: "Ariel Molina", email: "ariel@example.com", password: "password123", phone: "+54 11 3999-0011", role: "worker", trade: "Cerrajería", trades: ["Cerrajería", "Mantenimiento"], coverageZone: "Flores, Floresta, Villa Luro", hourlyRate: 2900, bio: "Cerrajero 24hs. Aperturas, rejas y cerraduras de alta seguridad.", verified: true, verification: { identity: true, background: true, license: false }, level: "bronze", rating: 4.5, reviewCount: 7, jobsDone: 8, premium: false, available: true, workSchedule: ALL_DAY, onCallWeekends: true, onCallSurcharge: 30, vehicle: "Moto con caja", invitesReceived: 12, invitesAnswered: 11, responseMinutesTotal: 70, zone: "Flores, CABA", geo: { lat: -34.6320, lng: -58.4640 }, photo: avatar("men", 40), createdAt: daysAgo(70), updatedAt: t },
+      { id: "w14", name: "Claudia Ojeda", email: "claudia@example.com", password: "password123", phone: "+54 11 4111-2233", role: "worker", trade: "Mantenimiento", trades: ["Mantenimiento", "Pintura", "Limpieza"], coverageZone: "CABA (toda la ciudad)", hourlyRate: 3000, bio: "Mantenimiento integral de edificios y consorcios. Trabajo con administraciones.", verified: true, verification: fullVerif, level: "gold", rating: 4.7, reviewCount: 29, jobsDone: 38, premium: true, available: true, workSchedule: FULL_WEEK, onCallWeekends: true, onCallSurcharge: 20, vehicle: "Master con equipo", invitesReceived: 34, invitesAnswered: 31, responseMinutesTotal: 280, zone: "Caballito, CABA", geo: { lat: -34.6150, lng: -58.4340 }, photo: avatar("women", 58), createdAt: daysAgo(300), updatedAt: t },
+      { id: "w15", name: "Damián Rivas", email: "damian@example.com", password: "password123", phone: "+54 11 4222-3344", role: "worker", trade: "Aire acondicionado", trades: ["Aire acondicionado"], coverageZone: "Villa Urquiza, Belgrano, Núñez", hourlyRate: 4500, bio: "Service e instalación de split y multisplit. Presupuesto en el día.", verified: false, verification: { identity: true, background: false, license: false }, level: "bronze", rating: 4.2, reviewCount: 5, jobsDone: 6, premium: false, available: true, workSchedule: WEEKDAYS, onCallWeekends: false, invitesReceived: 11, invitesAnswered: 6, responseMinutesTotal: 290, zone: "Núñez, CABA", geo: { lat: -34.5460, lng: -58.4620 }, photo: avatar("men", 90), createdAt: daysAgo(45), updatedAt: t },
+      { id: "w16", name: "Elena Paz", email: "elena@example.com", password: "password123", phone: "+54 11 4333-4455", role: "worker", trade: "Jardinería", trades: ["Jardinería"], coverageZone: "Villa Devoto, Agronomía, Villa Urquiza", hourlyRate: 2400, bio: "Diseño de jardines y huertas urbanas. Riego automático.", verified: true, verification: { identity: true, background: true, license: false }, level: "silver", rating: 4.8, reviewCount: 12, jobsDone: 14, premium: false, available: true, workSchedule: WEEKDAYS, onCallWeekends: false, invitesReceived: 15, invitesAnswered: 13, responseMinutesTotal: 230, zone: "Agronomía, CABA", geo: { lat: -34.5930, lng: -58.4900 }, photo: avatar("women", 20), createdAt: daysAgo(130), updatedAt: t },
     ];
 
     // Propiedades del administrador de consorcios (u4).
@@ -220,6 +232,22 @@ class DataStore {
       { id: "s4", workerId: "w2", title: "Reparación de tablero eléctrico", category: "Electricidad", description: "Diagnóstico y reparación de tableros, disyuntores y térmicas.", price: 6000, duration: "1-3 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: true, complexity: "compleja", warrantyDays: 90, images: [photo("electrical,panel", 35)], active: true, views: 40, createdAt: daysAgo(40), updatedAt: t },
       { id: "s5", workerId: "w3", title: "Apertura de puertas 24hs", category: "Cerrajería", description: "Apertura sin daño y cambio de cerradura en el acto.", price: 5000, duration: "30-60 min", schedule: "24 horas", withUrgency: true, complexity: "basica", warrantyDays: 30, images: [photo("lock,key", 36)], active: true, views: 210, createdAt: daysAgo(30), updatedAt: t },
       { id: "s6", workerId: "w4", title: "Pintura de interiores", category: "Pintura", description: "Interiores completos, incluye masillado y dos manos.", price: 12000, duration: "2-3 días", schedule: "Lun a Vie 9-18hs", withUrgency: false, complexity: "intermedia", warrantyDays: 90, images: [photo("painting,wall", 37)], active: true, views: 55, createdAt: daysAgo(25), updatedAt: t },
+
+      { id: "s7", workerId: "w5", title: "Certificación de gas ENARGAS", category: "Gas", description: "Prueba de hermeticidad y certificado para habilitaciones.", price: 14000, duration: "2-3 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: true, complexity: "compleja", warrantyDays: 365, images: [photo("gas,pipe", 61), photo("gasfitter", 62)], active: true, views: 188, createdAt: daysAgo(120), updatedAt: t },
+      { id: "s8", workerId: "w5", title: "Instalación de calefactor", category: "Gas", description: "Colocación y conexión de calefactores tiro balanceado.", price: 9500, duration: "3-4 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: false, complexity: "compleja", warrantyDays: 180, images: [photo("heater,home", 63)], active: true, views: 96, createdAt: daysAgo(110), updatedAt: t },
+      { id: "s9", workerId: "w6", title: "Service de aire split", category: "Aire acondicionado", description: "Limpieza de filtros, carga de gas y control de consumo.", price: 7500, duration: "1-2 horas", schedule: "Lun a Dom 8-20hs", withUrgency: true, complexity: "intermedia", warrantyDays: 90, images: [photo("air,conditioner", 64)], active: true, views: 240, createdAt: daysAgo(95), updatedAt: t },
+      { id: "s10", workerId: "w6", title: "Instalación de split 3000W", category: "Aire acondicionado", description: "Instalación completa con caño y soporte incluidos.", price: 18000, duration: "4-5 horas", schedule: "Lun a Vie 9-18hs", withUrgency: false, complexity: "compleja", warrantyDays: 180, images: [photo("hvac,install", 65)], active: true, views: 134, createdAt: daysAgo(85), updatedAt: t },
+      { id: "s11", workerId: "w7", title: "Placard a medida", category: "Carpintería", description: "Diseño, fabricación y colocación de placares melamina.", price: 45000, duration: "5-7 días", schedule: "Lun a Vie 9-18hs", withUrgency: false, complexity: "compleja", warrantyDays: 365, images: [photo("closet,wardrobe", 66), photo("carpenter,wood", 67)], active: true, views: 172, createdAt: daysAgo(150), updatedAt: t },
+      { id: "s12", workerId: "w7", title: "Arreglo de puertas y cajones", category: "Carpintería", description: "Ajuste de bisagras, corredoras y burletes.", price: 4200, duration: "1-2 horas", schedule: "Lun a Vie 9-18hs", withUrgency: true, complexity: "basica", warrantyDays: 60, images: [photo("door,repair", 68)], active: true, views: 78, createdAt: daysAgo(140), updatedAt: t },
+      { id: "s13", workerId: "w8", title: "Limpieza profunda de departamento", category: "Limpieza", description: "Cocina, baños, vidrios y desengrasado completo.", price: 16000, duration: "5-6 horas", schedule: "Lun a Sáb 8-18hs", withUrgency: false, complexity: "basica", warrantyDays: 15, images: [photo("cleaning,home", 69)], active: true, views: 310, createdAt: daysAgo(180), updatedAt: t },
+      { id: "s14", workerId: "w8", title: "Limpieza fin de obra", category: "Limpieza", description: "Retiro de escombro fino, polvo de obra y pulido de pisos.", price: 28000, duration: "1-2 días", schedule: "Lun a Sáb 8-18hs", withUrgency: false, complexity: "intermedia", warrantyDays: 15, images: [photo("construction,cleaning", 70)], active: true, views: 145, createdAt: daysAgo(170), updatedAt: t },
+      { id: "s15", workerId: "w9", title: "Poda y mantenimiento de jardín", category: "Jardinería", description: "Corte de césped, poda de arbustos y retiro de restos.", price: 8500, duration: "3-4 horas", schedule: "Lun a Vie 8-17hs", withUrgency: false, complexity: "basica", warrantyDays: 30, images: [photo("garden,hedge", 71)], active: true, views: 88, createdAt: daysAgo(60), updatedAt: t },
+      { id: "s16", workerId: "w10", title: "Puesta a tierra con certificado", category: "Electricidad", description: "Jabalina, medición y certificado para el consorcio.", price: 22000, duration: "4-5 horas", schedule: "Lun a Sáb 8-20hs", withUrgency: false, complexity: "compleja", warrantyDays: 365, images: [photo("electric,grounding", 72)], active: true, views: 119, createdAt: daysAgo(100), updatedAt: t },
+      { id: "s17", workerId: "w11", title: "Destapación con máquina", category: "Plomería", description: "Destapación de cloacas y pluviales con equipo rotativo.", price: 11000, duration: "1-3 horas", schedule: "24 horas", withUrgency: true, complexity: "intermedia", warrantyDays: 60, images: [photo("drain,plumbing", 73)], active: true, views: 265, createdAt: daysAgo(130), updatedAt: t },
+      { id: "s18", workerId: "w12", title: "Microcemento alisado", category: "Pintura", description: "Aplicación de microcemento en pisos y paredes.", price: 38000, duration: "3-4 días", schedule: "Lun a Vie 9-18hs", withUrgency: false, complexity: "compleja", warrantyDays: 365, images: [photo("microcement,wall", 74), photo("interior,design", 75)], active: true, views: 203, createdAt: daysAgo(90), updatedAt: t },
+      { id: "s19", workerId: "w13", title: "Apertura de puerta sin daño", category: "Cerrajería", description: "Apertura de puertas y autos las 24 horas.", price: 6500, duration: "30-45 min", schedule: "24 horas", withUrgency: true, complexity: "basica", warrantyDays: 15, images: [photo("locksmith,door", 76)], active: true, views: 198, createdAt: daysAgo(50), updatedAt: t },
+      { id: "s20", workerId: "w14", title: "Mantenimiento mensual de edificio", category: "Mantenimiento", description: "Ronda de plomería, electricidad, luces de palier y bombas.", price: 32000, duration: "1 día por mes", schedule: "Lun a Vie 8-18hs", withUrgency: false, complexity: "intermedia", warrantyDays: 30, images: [photo("building,maintenance", 77)], active: true, views: 156, createdAt: daysAgo(200), updatedAt: t },
+      { id: "s21", workerId: "w16", title: "Riego automático para terraza", category: "Jardinería", description: "Instalación de riego por goteo con programador.", price: 26000, duration: "1-2 días", schedule: "Lun a Vie 8-17hs", withUrgency: false, complexity: "intermedia", warrantyDays: 180, images: [photo("irrigation,garden", 78)], active: true, views: 67, createdAt: daysAgo(80), updatedAt: t },
     ];
 
     this.offers = [
@@ -227,6 +255,15 @@ class DataStore {
       { id: "o2", authorId: "u2", title: "Instalación de tomacorrientes", description: "Necesito instalar 3 tomacorrientes nuevos en la cocina.", category: "Electricidad", budget: 3000, urgency: "programada", scheduledDate: daysAgo(-3), location: "Belgrano, CABA", geo: { lat: -34.5627, lng: -58.4583 }, images: [photo("power,outlet", 43)], emergency: false, status: "abierta", radiusKm: 3, firstProposalAt: daysAgo(0), createdAt: daysAgo(1), updatedAt: t },
       { id: "o3", authorId: "u3", title: "Urgente: se cortó la luz en la cocina", description: "Saltó el tablero y no vuelve la luz en el sector de cocina del local.", category: "Electricidad", budget: 8000, urgency: "inmediata", location: "San Telmo, CABA", geo: { lat: -34.6208, lng: -58.3735 }, images: [photo("fusebox,electrical", 44), photo("kitchen,dark", 45)], emergency: true, status: "abierta", radiusKm: 6, responseDeadline: new Date(Date.now() + 9 * 60000).toISOString(), escalations: [minsAgo(6)], notifiedWorkerIds: ["w2"], createdAt: minsAgo(12), updatedAt: t },
       { id: "o4", authorId: "u4", title: "Bomba de agua con pérdida en la terraza", description: "La bomba de la Torre Nazca pierde agua. Necesito revisión y presupuesto para el consorcio.", category: "Plomería", budget: 15000, urgency: "en_el_dia", location: "Av. Nazca 2200", geo: { lat: -34.6060, lng: -58.4880 }, images: [photo("water,pump", 46)], emergency: false, status: "abierta", propertyId: "prop3", radiusKm: 6, createdAt: daysAgo(0), updatedAt: t },
+
+      // ── Más solicitudes abiertas: el marketplace tiene que verse con movimiento ──
+      { id: "o5", authorId: "u1", title: "El split no enfría", description: "El aire del living tira aire pero no enfría. Creo que le falta gas.", category: "Aire acondicionado", budget: 9000, urgency: "en_el_dia", location: "Palermo, CABA", geo: { lat: -34.5885, lng: -58.4105 }, images: [photo("air,split", 81)], emergency: false, status: "abierta", radiusKm: 6, createdAt: daysAgo(0), updatedAt: t },
+      { id: "o6", authorId: "u2", title: "Placard a medida para dormitorio", description: "Necesito un placard de 2,40m de ancho, con cajonera y barral.", category: "Carpintería", budget: 50000, urgency: "programada", scheduledDate: daysAgo(-12), location: "Belgrano, CABA", geo: { lat: -34.5627, lng: -58.4583 }, images: [photo("bedroom,closet", 82)], emergency: false, status: "abierta", radiusKm: 6, createdAt: daysAgo(3), updatedAt: t },
+      { id: "o7", authorId: "u4", title: "Certificación de gas para habilitación", description: "El edificio de Güemes necesita la prueba de hermeticidad para renovar la habilitación.", category: "Gas", budget: 16000, urgency: "programada", scheduledDate: daysAgo(-8), location: "Güemes 3100", geo: { lat: -34.5905, lng: -58.4120 }, images: [], emergency: false, status: "abierta", propertyId: "prop2", radiusKm: 6, createdAt: daysAgo(2), updatedAt: t },
+      { id: "o8", authorId: "u3", title: "Limpieza profunda de cocina del local", description: "Desengrasado completo de cocina y campana antes de la inspección.", category: "Limpieza", budget: 25000, urgency: "en_el_dia", location: "San Telmo, CABA", geo: { lat: -34.6208, lng: -58.3735 }, images: [photo("kitchen,commercial", 83)], emergency: false, status: "abierta", radiusKm: 6, createdAt: daysAgo(1), updatedAt: t },
+      { id: "o9", authorId: "u2", title: "Urgente: me quedé afuera de casa", description: "Se me trabó la cerradura y no puedo entrar. Estoy en la puerta.", category: "Cerrajería", budget: 7000, urgency: "inmediata", location: "Belgrano, CABA", geo: { lat: -34.5627, lng: -58.4583 }, images: [], emergency: true, status: "abierta", radiusKm: 3, responseDeadline: new Date(Date.now() + 11 * 60000).toISOString(), escalations: [], notifiedWorkerIds: ["w3", "w13"], createdAt: minsAgo(4), updatedAt: t },
+      { id: "o10", authorId: "u1", title: "Poda del jardín del fondo", description: "Está muy crecido, necesito poda y que se lleven los restos.", category: "Jardinería", budget: 9000, urgency: "programada", scheduledDate: daysAgo(-6), location: "Palermo, CABA", geo: { lat: -34.5885, lng: -58.4105 }, images: [photo("overgrown,garden", 84)], emergency: false, status: "abierta", radiusKm: 6, createdAt: daysAgo(4), updatedAt: t },
+      { id: "o11", authorId: "u4", title: "Pintura de palier y escalera", description: "Dos manos en palieres de 8 pisos, incluye cielorraso.", category: "Pintura", budget: 85000, urgency: "programada", scheduledDate: daysAgo(-20), location: "Av. Rivadavia 5400", geo: { lat: -34.6180, lng: -58.4420 }, images: [photo("stairwell,paint", 85)], emergency: false, status: "abierta", propertyId: "prop1", radiusKm: 12, createdAt: daysAgo(5), updatedAt: t },
     ];
 
     this.proposals = [
@@ -248,6 +285,21 @@ class DataStore {
       { id: "j7", offerId: "o-hist7", proposalId: "p-hist7", clientId: "u3", workerId: "w3", category: "Cerrajería", title: "Cambio de cerradura del local", amount: 5500, scheduledAt: t, insurance: true, insuranceCost: 800, insurancePlanId: "basico", status: "en_camino", etaMinutes: 15, departedAt: minsAgo(3), originGeo: { lat: -34.6100, lng: -58.4200 }, workerGeo: { lat: -34.6100, lng: -58.4200 }, arrivalCode: "4271", trackingToken: "trk-j7-demo", createdAt: minsAgo(45), reviewedByClient: false, reviewedByWorker: false },
       // Mantenimiento recurrente del consorcio, ya completado una vez.
       { id: "j8", offerId: "o-hist8", proposalId: "p-hist8", clientId: "u4", workerId: "w4", category: "Mantenimiento", title: "Mantenimiento mensual — Rivadavia 5400", amount: 18000, scheduledAt: daysAgo(15), insurance: false, status: "completado", propertyId: "prop1", warrantyDays: 30, createdAt: daysAgo(17), completedAt: daysAgo(15), reviewedByClient: true, reviewedByWorker: false },
+
+      // ── Trabajos en curso: sin esto "Mis acuerdos > Activos" queda en 0 ──
+      { id: "j9", offerId: "o-hist9", proposalId: "p-hist9", clientId: "u2", workerId: "w1", category: "Plomería", title: "Cambio de termotanque", amount: 8500, scheduledAt: daysAgo(-1), insurance: true, insuranceCost: 800, insurancePlanId: "basico", status: "agendado", warrantyDays: 180, createdAt: daysAgo(2), reviewedByClient: false, reviewedByWorker: false },
+      { id: "j10", offerId: "o-hist10", proposalId: "p-hist10", clientId: "u3", workerId: "w1", category: "Gas", title: "Revisión de instalación de gas del local", amount: 12000, scheduledAt: daysAgo(0), insurance: true, insuranceCost: 800, insurancePlanId: "basico", status: "en_progreso", startedAt: minsAgo(70), arrivedAt: minsAgo(80), arrivalConfirmedAt: minsAgo(78), departedAt: minsAgo(105), etaMinutes: 25, warrantyDays: 90, createdAt: daysAgo(1), reviewedByClient: false, reviewedByWorker: false },
+      { id: "j11", offerId: "o-hist11", proposalId: "p-hist11", clientId: "u4", workerId: "w14", category: "Mantenimiento", title: "Mantenimiento mensual — Torre Nazca", amount: 32000, scheduledAt: daysAgo(-3), insurance: false, status: "agendado", propertyId: "prop3", warrantyDays: 30, createdAt: daysAgo(4), reviewedByClient: false, reviewedByWorker: false },
+
+      // ── Historial de los profesionales nuevos, para que los perfiles no estén vacíos ──
+      { id: "j12", offerId: "o-hist12", proposalId: "p-hist12", clientId: "u1", workerId: "w5", category: "Gas", title: "Certificación de gas del departamento", amount: 14000, scheduledAt: daysAgo(35), insurance: true, insuranceCost: 800, insurancePlanId: "basico", status: "completado", warrantyDays: 365, resultImages: [photo("gas,certificate", 91)], createdAt: daysAgo(37), completedAt: daysAgo(35), reviewedByClient: true, reviewedByWorker: true },
+      { id: "j13", offerId: "o-hist13", proposalId: "p-hist13", clientId: "u3", workerId: "w6", category: "Aire acondicionado", title: "Service de los 3 splits del salón", amount: 21000, scheduledAt: daysAgo(28), insurance: false, status: "completado", warrantyDays: 90, resultImages: [photo("split,clean", 92)], createdAt: daysAgo(30), completedAt: daysAgo(28), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j14", offerId: "o-hist14", proposalId: "p-hist14", clientId: "u2", workerId: "w8", category: "Limpieza", title: "Limpieza profunda post mudanza", amount: 16000, scheduledAt: daysAgo(22), insurance: false, status: "completado", warrantyDays: 15, createdAt: daysAgo(24), completedAt: daysAgo(22), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j15", offerId: "o-hist15", proposalId: "p-hist15", clientId: "u4", workerId: "w10", category: "Electricidad", title: "Puesta a tierra — Güemes 3100", amount: 22000, scheduledAt: daysAgo(40), insurance: false, status: "completado", propertyId: "prop2", warrantyDays: 365, resultImages: [photo("electrical,ground", 93)], createdAt: daysAgo(42), completedAt: daysAgo(40), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j16", offerId: "o-hist16", proposalId: "p-hist16", clientId: "u3", workerId: "w11", category: "Plomería", title: "Destapación de cloaca del local", amount: 11000, scheduledAt: daysAgo(18), insurance: false, status: "completado", warrantyDays: 60, createdAt: daysAgo(19), completedAt: daysAgo(18), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j17", offerId: "o-hist17", proposalId: "p-hist17", clientId: "u1", workerId: "w12", category: "Pintura", title: "Microcemento en el baño", amount: 38000, scheduledAt: daysAgo(50), insurance: false, status: "completado", warrantyDays: 365, resultImages: [photo("bathroom,microcement", 94)], createdAt: daysAgo(55), completedAt: daysAgo(50), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j18", offerId: "o-hist18", proposalId: "p-hist18", clientId: "u2", workerId: "w7", category: "Carpintería", title: "Arreglo de puertas del pasillo", amount: 4200, scheduledAt: daysAgo(12), insurance: false, status: "completado", warrantyDays: 60, createdAt: daysAgo(13), completedAt: daysAgo(12), reviewedByClient: true, reviewedByWorker: false },
+      { id: "j19", offerId: "o-hist19", proposalId: "p-hist19", clientId: "u1", workerId: "w16", category: "Jardinería", title: "Riego automático en la terraza", amount: 26000, scheduledAt: daysAgo(60), insurance: false, status: "completado", warrantyDays: 180, resultImages: [photo("drip,irrigation", 95)], createdAt: daysAgo(64), completedAt: daysAgo(60), reviewedByClient: true, reviewedByWorker: false },
     ];
 
     this.payments = [
@@ -265,6 +317,17 @@ class DataStore {
       { id: "r5", jobId: "j4", authorId: "u1", targetId: "w1", stars: 4, comment: "Muy buen trabajo, detectó la pérdida enseguida.", verified: true, createdAt: daysAgo(8) },
       { id: "r6", jobId: "j5", authorId: "u2", targetId: "w3", stars: 5, comment: "Vino rápido y cambió la cerradura sin problemas.", verified: true, createdAt: daysAgo(6) },
       { id: "r7", jobId: "j8", authorId: "u4", targetId: "w4", stars: 4, comment: "Cumplió con el mantenimiento del edificio sin observaciones.", verified: true, createdAt: daysAgo(15) },
+
+      // ── Reseñas de los profesionales nuevos ──
+      { id: "r8", jobId: "j12", authorId: "u1", targetId: "w5", stars: 5, comment: "Impecable. Dejó el certificado el mismo día y explicó todo con paciencia.", verified: true, reply: { text: "Gracias María, cualquier cosa avisame.", createdAt: daysAgo(34) }, createdAt: daysAgo(35) },
+      { id: "r9", jobId: "j12", authorId: "w5", targetId: "u1", stars: 5, comment: "Todo coordinado por la app, sin vueltas.", verified: true, createdAt: daysAgo(35) },
+      { id: "r10", jobId: "j13", authorId: "u3", targetId: "w6", stars: 5, comment: "Los tres equipos quedaron como nuevos. Vino con todo el equipo.", verified: true, createdAt: daysAgo(28) },
+      { id: "r11", jobId: "j14", authorId: "u2", targetId: "w8", stars: 5, comment: "Dejó el depto brillante. Súper prolija y puntual.", verified: true, createdAt: daysAgo(22) },
+      { id: "r12", jobId: "j15", authorId: "u4", targetId: "w10", stars: 5, comment: "Nos resolvió la puesta a tierra con el certificado para el consorcio.", verified: true, createdAt: daysAgo(40) },
+      { id: "r13", jobId: "j16", authorId: "u3", targetId: "w11", stars: 4, comment: "Destapó todo bien. Tardó un poco más de lo previsto pero resolvió.", verified: true, reply: { text: "Gracias! La cañería estaba peor de lo que parecía.", createdAt: daysAgo(17) }, createdAt: daysAgo(18) },
+      { id: "r14", jobId: "j17", authorId: "u1", targetId: "w12", stars: 5, comment: "El baño quedó espectacular, un trabajo de detalle.", verified: true, createdAt: daysAgo(50) },
+      { id: "r15", jobId: "j18", authorId: "u2", targetId: "w7", stars: 5, comment: "Rápido y muy prolijo con las puertas.", verified: true, createdAt: daysAgo(12) },
+      { id: "r16", jobId: "j19", authorId: "u1", targetId: "w16", stars: 5, comment: "El riego funciona perfecto, me explicó cómo programarlo.", verified: true, createdAt: daysAgo(60) },
     ];
 
     this.favorites = [
@@ -2049,108 +2112,6 @@ class DataStore {
         };
       })
       .sort((a, b) => b.ratio - a.ratio);
-  }
-
-  // ─────────── Métricas del marketplace (tesis 3.5 y 3.6.3) ───────────
-  getMarketplaceMetrics(): MarketplaceMetrics {
-    const clients = this.users.filter((u) => u.role === "user");
-    const workers = this.users.filter((u) => u.role === "worker");
-    const completed = this.jobs.filter((j) => j.status === "completado");
-    const cancelled = this.jobs.filter((j) => j.status === "cancelado");
-
-    // Time-to-match: solicitud → primera propuesta.
-    const matched = this.offers.filter((o) => o.firstProposalAt);
-    const timeToMatchHours = matched.length
-      ? Math.round(
-          (matched.reduce(
-            (s, o) => s + (new Date(o.firstProposalAt!).getTime() - new Date(o.createdAt).getTime()),
-            0,
-          ) /
-            matched.length /
-            3600000) *
-            10,
-        ) / 10
-      : null;
-
-    // Fill rate: solicitudes con al menos una propuesta.
-    const withProposal = this.offers.filter((o) => this.proposals.some((p) => p.offerId === o.id)).length;
-    const fillRate = this.offers.length ? Math.round((withProposal / this.offers.length) * 100) : 0;
-
-    const cancelRate = this.jobs.length ? Math.round((cancelled.length / this.jobs.length) * 100) : 0;
-    const closed = completed.length + cancelled.length;
-    const disputeRate = closed ? Math.round((this.disputes.length / closed) * 100) : 0;
-
-    // Liquidez de oferta por zona.
-    const zones = new Map<string, { availableNow: number; total: number }>();
-    workers.forEach((w) => {
-      const zone = (w.zone || "Sin zona").split(",")[0].trim();
-      const entry = zones.get(zone) || { availableNow: 0, total: 0 };
-      entry.total += 1;
-      if (this.getAvailabilityStatus(w.id) === "disponible") entry.availableNow += 1;
-      zones.set(zone, entry);
-    });
-    const liquidityByZone: ZoneLiquidity[] = [...zones.entries()]
-      .map(([zone, v]) => ({ zone, ...v }))
-      .sort((a, b) => b.total - a.total);
-
-    // Conversión: clientes que pidieron al menos un servicio.
-    const requesters = new Set(this.offers.map((o) => o.authorId));
-    const clientConversion = clients.length ? Math.round((requesters.size / clients.length) * 100) : 0;
-
-    // Retención: usuarios con más de un trabajo / trabajadores con al menos uno.
-    const jobsByClient = new Map<string, number>();
-    this.jobs.forEach((j) => jobsByClient.set(j.clientId, (jobsByClient.get(j.clientId) || 0) + 1));
-    const recurrent = [...jobsByClient.values()].filter((n) => n > 1).length;
-    const userRetention = jobsByClient.size ? Math.round((recurrent / jobsByClient.size) * 100) : 0;
-    const activeWorkers = new Set(this.jobs.map((j) => j.workerId)).size;
-    const workerRetention = workers.length ? Math.round((activeWorkers / workers.length) * 100) : 0;
-
-    // Tasa de respuesta de trabajadores.
-    const invites = workers.reduce((s, w) => s + (w.invitesReceived || 0), 0);
-    const answered = workers.reduce((s, w) => s + (w.invitesAnswered || 0), 0);
-    const workerResponseRate = invites ? Math.round((answered / invites) * 100) : 0;
-
-    // Éxito de emparejamiento: completados sobre solicitudes iniciadas.
-    const matchingSuccessRate = this.offers.length ? Math.round((completed.length / this.offers.length) * 100) : 0;
-
-    const gmv = this.payments.reduce((s, p) => s + p.total, 0);
-    const avgTicket = this.payments.length ? Math.round(gmv / this.payments.length) : 0;
-
-    // NPS = % promotores (9-10) − % detractores (0-6).
-    const nps = this.npsResponses.length
-      ? Math.round(
-          ((this.npsResponses.filter((n) => n.score >= 9).length -
-            this.npsResponses.filter((n) => n.score <= 6).length) /
-            this.npsResponses.length) *
-            100,
-        )
-      : null;
-
-    return {
-      timeToMatchHours,
-      fillRate,
-      cancelRate,
-      disputeRate,
-      liquidityByZone,
-      clientConversion,
-      userRetention,
-      workerRetention,
-      workerResponseRate,
-      matchingSuccessRate,
-      avgTicket,
-      nps,
-      npsResponses: this.npsResponses.length,
-      totals: {
-        clients: clients.length,
-        workers: workers.length,
-        offers: this.offers.length,
-        jobs: this.jobs.length,
-        completed: completed.length,
-        cancelled: cancelled.length,
-        disputes: this.disputes.length,
-        gmv,
-      },
-    };
   }
 
   // ─────────────────────────── Verificación KYC ───────────────────────────

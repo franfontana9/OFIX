@@ -19,12 +19,11 @@ const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 // Seguimiento compartido con un contacto de confianza: público, sin login.
 const TrackShared = lazy(() => import("@/pages/TrackShared"));
-// Panel interno con los KPIs y la salud del marketplace (tesis 3.5 y 3.6.3).
-const Metrics = lazy(() => import("@/pages/Metrics"));
 
 // Usuario / cliente
 const UserHome = lazy(() => import("@/pages/u/Home"));
 const UserSearch = lazy(() => import("@/pages/u/Search"));
+const UserMapView = lazy(() => import("@/pages/u/MapView"));
 const UserWorkerProfile = lazy(() => import("@/pages/u/WorkerProfile"));
 const UserRequests = lazy(() => import("@/pages/u/Requests"));
 const UserNewRequest = lazy(() => import("@/pages/u/NewRequest"));
@@ -92,15 +91,12 @@ export default function App() {
           <Route path="/t/:token" element={<TrackShared />} />
           <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
-          {/* Panel de métricas: cualquier rol autenticado (demo interna) */}
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/panel" element={<Metrics />} />
-          </Route>
 
           {/* Usuario / cliente */}
           <Route element={<ProtectedRoute requiredRole="user"><AppLayout /></ProtectedRoute>}>
             <Route path="/u/home" element={<UserHome />} />
             <Route path="/u/search" element={<UserSearch />} />
+            <Route path="/u/map" element={<UserMapView />} />
             <Route path="/u/workers/:id" element={<UserWorkerProfile />} />
             <Route path="/u/requests" element={<UserRequests />} />
             <Route path="/u/requests/new" element={<UserNewRequest />} />

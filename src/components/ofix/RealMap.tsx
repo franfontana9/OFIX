@@ -16,7 +16,16 @@ export interface MapPoint {
   price?: number;
   verified?: boolean;
   photo?: string;
+  /** "disponible" pinta el pin en verde y lo muestra en el popup. */
+  availability?: "disponible" | "ocupado" | "fuera_de_horario";
+  availabilityLabel?: string;
 }
+
+const AVAILABILITY_COLOR: Record<string, string> = {
+  disponible: "#16a34a",
+  ocupado: "#f97316",
+  fuera_de_horario: "#94a3b8",
+};
 
 // Pin personalizado (evita el bug de assets de los íconos default de Leaflet).
 function pin(color: string, ring = false) {
@@ -84,7 +93,8 @@ export function RealMap({
           <Marker
             key={p.id}
             position={[p.lat, p.lng]}
-            icon={pin(primary)}
+            // El color del pin dice de un vistazo quién puede ir ahora.
+            icon={pin(p.availability ? AVAILABILITY_COLOR[p.availability] || primary : primary)}
             eventHandlers={{ click: () => onSelect?.(p.id) }}
           >
             <Popup>
@@ -105,6 +115,30 @@ export function RealMap({
                     {p.subtitle && <div style={{ color: "#64748b", fontSize: 12 }}>{p.subtitle}</div>}
                   </div>
                 </div>
+                {p.availabilityLabel && (
+                  <div style={{ margin: "8px 0 0" }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: p.availability ? AVAILABILITY_COLOR[p.availability] : "#64748b",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: "50%",
+                          background: p.availability ? AVAILABILITY_COLOR[p.availability] : "#64748b",
+                        }}
+                      />
+                      {p.availabilityLabel}
+                    </span>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 12, margin: "8px 0", fontSize: 12, color: "#334155" }}>
                   {typeof p.rating === "number" && p.rating > 0 && <span>⭐ {p.rating.toFixed(1)}{p.reviewCount ? ` (${p.reviewCount})` : ""}</span>}
                   {typeof p.distance === "number" && <span style={{ color: "#2563eb" }}>📍 a {p.distance} km</span>}

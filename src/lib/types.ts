@@ -558,42 +558,6 @@ export interface PriceReference {
   count: number; // sobre cuántos datos se calculó
 }
 
-// ── Métricas del marketplace (tesis 3.5 y 3.6.3) ──
-export interface ZoneLiquidity {
-  zone: string;
-  availableNow: number;
-  total: number;
-}
-
-export interface MarketplaceMetrics {
-  // Salud del marketplace (3.6.3)
-  timeToMatchHours: number | null;
-  fillRate: number; // % de solicitudes con al menos una oferta
-  cancelRate: number;
-  disputeRate: number;
-  liquidityByZone: ZoneLiquidity[];
-  // KPIs de producto y negocio (3.5)
-  clientConversion: number;
-  userRetention: number;
-  workerRetention: number;
-  workerResponseRate: number;
-  matchingSuccessRate: number;
-  avgTicket: number;
-  nps: number | null;
-  npsResponses: number;
-  // Volúmenes de apoyo
-  totals: {
-    clients: number;
-    workers: number;
-    offers: number;
-    jobs: number;
-    completed: number;
-    cancelled: number;
-    disputes: number;
-    gmv: number;
-  };
-}
-
 // Insight de demanda para el trabajador (E4 y E5: estacionalidad).
 export interface DemandInsight {
   category: string;

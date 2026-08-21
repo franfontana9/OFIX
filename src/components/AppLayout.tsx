@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Search,
+  MapPin,
   Plus,
   ClipboardList,
   Briefcase,
@@ -18,7 +19,6 @@ import {
   TrendingUp,
   Crown,
   Repeat,
-  Gauge,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
@@ -40,9 +40,10 @@ interface NavItem {
 const USER_NAV: NavItem[] = [
   { to: "/u/home", label: "Inicio", icon: Home },
   { to: "/u/search", label: "Buscar profesionales", icon: Search },
+  { to: "/u/map", label: "Mapa de cercanos", icon: MapPin },
   { to: "/u/requests/new", label: "Nueva solicitud", icon: Plus },
   { to: "/u/requests", label: "Mis solicitudes", icon: ClipboardList },
-  { to: "/u/jobs", label: "Mis trabajos", icon: Briefcase },
+  { to: "/u/jobs", label: "Mis contrataciones", icon: Briefcase },
   { to: "/u/favorites", label: "Favoritos", icon: Heart },
   { to: "/u/agenda", label: "Agenda", icon: Calendar },
   { to: "/u/chat", label: "Mensajes", icon: MessageCircle },
@@ -55,8 +56,6 @@ const PROPERTIES_NAV: NavItem = { to: "/u/properties", label: "Mis propiedades",
 const RECURRING_NAV: NavItem = { to: "/u/recurring", label: "Mantenimiento", icon: Repeat };
 const BUSINESS_NAV: NavItem = { to: "/u/business", label: "Panel PyME", icon: Building2 };
 const CONSORCIO_NAV: NavItem = { to: "/u/business", label: "Panel de administración", icon: Building2 };
-// Panel interno de métricas del marketplace (demo de los KPIs de la tesis).
-const METRICS_NAV: NavItem = { to: "/panel", label: "Panel OFIX", icon: Gauge };
 
 const WORKER_NAV: NavItem[] = [
   { to: "/w/home", label: "Inicio", icon: Home },
@@ -79,7 +78,7 @@ const USER_TABS: NavItem[] = [
   { to: "/u/home", label: "Inicio", icon: Home },
   { to: "/u/search", label: "Buscar", icon: Search },
   { to: "/u/requests/new", label: "Nueva", icon: Plus },
-  { to: "/u/jobs", label: "Trabajos", icon: Briefcase },
+  { to: "/u/jobs", label: "Contratado", icon: Briefcase },
   { to: "/u/profile", label: "Perfil", icon: UserIcon },
 ];
 const WORKER_TABS: NavItem[] = [
@@ -117,10 +116,7 @@ export function AppLayout() {
   const extras: NavItem[] = [];
   if (isAdmin) extras.push(CONSORCIO_NAV, PROPERTIES_NAV, RECURRING_NAV);
   else if (isPyme) extras.push(BUSINESS_NAV, RECURRING_NAV);
-  const fullNav = [
-    ...(extras.length ? [...nav.slice(0, 6), ...extras, ...nav.slice(6)] : nav),
-    METRICS_NAV,
-  ];
+  const fullNav = extras.length ? [...nav.slice(0, 6), ...extras, ...nav.slice(6)] : nav;
   const unread = user ? store.unreadCount(user.id) : 0;
 
   return (
