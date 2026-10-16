@@ -1,0 +1,26 @@
+QUE ES CADA ARCHIVO
+===================
+
+OFIX PRESENTACION.pdf
+  Para presentar y para compartir. Lleva las fuentes adentro: se ve
+  identico en cualquier computadora, celular o proyector.
+
+OFIX PRESENTACION EDITABLE.pptx
+  Para editar en PowerPoint. Todo son formas nativas: cada tarjeta,
+  linea y chip se puede seleccionar y cambiar. Si la computadora no
+  tiene las fuentes instaladas, la maqueta igual queda intacta; solo
+  cambia el dibujo de las letras.
+
+OFIX PARA GOOGLE SLIDES.pptx
+  Solo para subir a Google Drive y abrir con Presentaciones de Google.
+  Es la misma presentacion pero con los cortes de linea fijados, porque
+  Slides re-parte el texto por su cuenta y se le encimaban las lineas.
+  NO usar esta version en PowerPoint: usa la de arriba.
+
+OFIX PRESENTACION (web).html
+  Se abre en cualquier navegador. Flechas para pasar, O para ver todas,
+  F para pantalla completa.
+
+OFIX FUENTES (opcional)/
+  Las 13 tipografias. Instalarlas solo si se quiere ver el diseno con
+  su tipografia exacta. No son necesarias.

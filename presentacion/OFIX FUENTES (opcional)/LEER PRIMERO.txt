@@ -1,0 +1,36 @@
+FUENTES OFIX  (opcional)
+========================
+
+La presentacion usa Archivo e IBM Plex. Son 13 familias, una por peso.
+
+NO SON OBLIGATORIAS. El .pptx abre y funciona igual sin instalarlas: la
+maqueta, las tarjetas, los colores y las posiciones quedan intactos.
+Lo unico que cambia es el dibujo de las letras, que pasa a Calibri.
+
+Instalalas si queres ver la tipografia exacta del diseno.
+
+COMO INSTALARLAS (una sola vez por computadora)
+
+  Mac
+  1. Seleccionar los 13 archivos .ttf de esta carpeta.
+  2. Doble clic. Se abre Catalogo Tipografico.
+  3. Boton "Instalar".
+  4. Cerrar PowerPoint del todo (Cmd+Q) y volver a abrirlo.
+
+  Windows
+  Seleccionar los 13 .ttf, clic derecho, "Instalar".
+
+Si dice "tipos de letra duplicados", ya las tenias: cerra la ventana.
+
+Para comprobarlo: en PowerPoint, desplegable de fuentes, escribi "Archivo".
+Tienen que aparecer las seis variantes.
+
+LAS 13 FAMILIAS
+  Archivo · Archivo Medium · Archivo SemiBold
+  Archivo Bold · Archivo ExtraBold · Archivo Black
+  IBM Plex Sans · IBM Plex Sans Medium · IBM Plex Sans SemiBold · IBM Plex Sans Bold
+  IBM Plex Mono · IBM Plex Mono Medium · IBM Plex Mono SemiBold
+
+Cada una tiene una sola cara (Regular) a proposito: si se usaran pares
+Regular+Negrita, PowerPoint reescribe los nombres al guardar e inventa
+familias que no existen, y ahi si se rompe la presentacion.
